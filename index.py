@@ -1,12 +1,13 @@
 import numpy
 import netCDF4
-import collections
+import calendar
+import collections  #   to make an ordered dictionary.
 import matplotlib.pyplot as plt
 #import numpy.ma as ma  #   I do not remember what it does! must be checked.
 #numpy.set_printoptions(threshold=numpy.nan) #   if activated it prints out the numpy arrays in their entierty 
                                             #   regrdless of how big they are.
 
-#   data = index.index(['SIC.1979.nc','SIC.2016.nc'],[1],(80,90),(0,90), between=True)
+#   data = index.index(['SIC.1979.nc','SIC.2016.nc'],[1,2,3],(80,90),(0,30), between=True)
 
 
 class index:
@@ -77,9 +78,9 @@ class index:
         
 def plotIndex(xdata, ydata, numberofmonth, overplot = False):
 
-    #   xdata has to be given in the form of a numpy.array with the same length as the number of years in ydata.
-    #   ydata is the output from the ice_reader function. It is a dictionary.
-    #   numberofmonth is the number of month that is covered in the ydata. It is of the int format.
+    #   xdata: give the initial and final year in int and tuple form.
+    #   ydata: is the output from the ice_reader function. It is a dictionary.
+    #   numberofmonth: is the number of month that is covered in the ydata. It is of the int format.
     #   overplot: if it is True it will the function will generate a plot with all the given month overplotted.
     #   if it is False the function will generate a seperate graph for each month (no overplot).
 
@@ -89,8 +90,8 @@ def plotIndex(xdata, ydata, numberofmonth, overplot = False):
 
 
     colour = ['g','r','k','m','b']
-    x_axis = xdata     #   just give the initial and final year in int and tuple form.
-    y_axis = ydata     #   ydata is in dic format
+    x_axis = xdata
+    y_axis = ydata
     valueArray = numpy.array([])
     for key, value in y_axis.iteritems():
         valueArray = numpy.append(valueArray, value)
@@ -102,14 +103,17 @@ def plotIndex(xdata, ydata, numberofmonth, overplot = False):
     if overplot == True:
         fig1, ax1 = plt.subplots(1, figsize=(15,6))
         ini = intervalArray[0]
+        month = 1
         for counter1 in range(numberofmonth):
             end = intervalArray[counter1+1]
             yplot = valueArray[ini:end]
             yearArray = numpy.arange(x_axis[0], x_axis[1]+1)
-            ax1.plot(yearArray,yplot,color = colour[counter1], linestyle ='-', linewidth = 3.0)
+            ax1.plot(yearArray,yplot,color = colour[counter1], linestyle ='-', linewidth = 3.0, label = calendar.month_name[month])
             ini = end
             ax1.set_xlim(x_axis[0], x_axis[1])
             ax1.grid('on')
+            month += 1
+        plt.legend(bbox_to_anchor=(0.15, 0.25))
     elif overplot == False:
         if int(numberofmonth%2) == 0:
             fig1, ax1 = plt.subplots(int(numberofmonth/2),2, figsize=(15,6))
@@ -127,6 +131,15 @@ def plotIndex(xdata, ydata, numberofmonth, overplot = False):
             ax1[row].grid('on')
             ini = end
             row +=1
+            
+            #   Tick-adjusment section:
+            if row == 1:
+#                first = ax1[row].XAxis()
+ #               print '----->', first
+                print type(ax1)
+                print type(ax1[row])
+            
+            
         fig1.subplots_adjust(hspace=0)
 
     plt.xlabel('Year', fontsize = 17)
