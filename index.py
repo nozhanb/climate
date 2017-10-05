@@ -72,9 +72,6 @@ class index:
                 latCounter = numpy.arange(self.lat[0] + 1, self.lat[1], -1)
                 lonCounter = numpy.arange(self.lon[0], self.lon[1] + 1, 1)
                 
-                for i in numpy.arange(self.lon[0], self.lon[1] + 1, 1):
-                    print 'i and longi --->', i, loaded_file.variables[longiVariable][i]
-                
                 counter1 = 0                    
                 for i in lati:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
                     lat2 = i + 0.5  
@@ -84,8 +81,8 @@ class index:
                             totalEnergy = []
                             for time in range(0,31):    #   this way we store the total energy for each cell over 31 days in the energyPerCEll array
                                 #   This is where we find the average energy per cell per year.
-#                                print 'time, lat, long -------->', time, loaded_file.variables['time'][time], i,j
-                                cellEnergy = numpy.array(loaded_file.variables[energyVariable][time,i,j]*(numpy.cos(lat2*(3.14/180))*0.5)*0.5)
+#                                print 'time, lat, long -------->', time, latCounter[counter1],lonCounter[counter2]
+                                cellEnergy = numpy.array(loaded_file.variables[energyVariable][time,latCounter[counter1],lonCounter[counter2]]*(numpy.cos(lat2*(3.14/180))*0.5)*0.5)
                                 if int(lat2) == 90:
                                     cellEnergy = 0      #   I am not sure about this line. Needs to be tested !!!
                                 totalEnergy.append(cellEnergy)
