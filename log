@@ -1,0 +1,40 @@
+OCT. 6, 2017
+
+I separated the functions in index.py. Now we have iceReader and energyReader.
+I need to check a few things. I still need to check the lat = 90 and make sure
+what is going on in lat = 90 exactly for both functions.
+ 
+I need to test the average part of the 
+iceReader function. I replace all the NAN values of the ice fraction by 0 and 
+now I am adding more numbers while there are no numbers there and it effects 
+average. First, I need to make sure if there are any ---/NAN values in the file.
+If so, I need to find a way to remove them from my data set.
+
+In energyReader function fix the average line. Right now it is functioning just 
+fine but it has the value of 31 hardcoded (it is meant for September only) in 
+it which makes it problematic if you wanna use it for 30-day months.
+
+I removed the septemeber_mean.py from the test/index directory. I no longer need
+it.
+
+######################
+Oct. 09, 2017
+
+- The class name was changed from index to EnergyIce.
+
+- I made a few changes to the index.py file. I added the index argument to the 
+	energyReader function. Now it can produce the index and the average 
+	over the europe. Also, it saves the data (depending index is set to 
+	True or False) to two different files named energyIndex and energAverage.
+
+- I also added totalSize attribute. 
+
+- Still need to make sure for the lat = 90.
+
+- I have two versions of the index.py on the stallo server. They are quite 
+	similar except a few minor changes to the beginning of each files so 
+	that the script can be able to read D and Q files.
+- Also added a few minor things to the europeMap function including a new arg 
+	called "numberOfMonth". This way the user does not have to manually 
+	divide the input data to find the average of the data.
+
