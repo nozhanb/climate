@@ -38,3 +38,27 @@ Oct. 09, 2017
 	called "numberOfMonth". This way the user does not have to manually 
 	divide the input data to find the average of the data.
 
+October 22, 2017
+
+- I removed the index.py from the code directory (i.e. the one we are in it now)
+	and added a more complete version of the index.py code under the name 
+	"energyice.py". From now on I will work on this code and update it. 
+
+- I merged the previous codes into this code. So I don't have to update both
+	codes.
+
+- So far the energyice module contains four functions. 'sicReader' which reads 
+	files (SIC files)
+	with sea surface ice information. 'energyReader' which reads in both 
+	files with dry and latent energy (i.e. DivD and DivQ files). 
+	'europeMap' which plots the energy data over a give longitude and 
+	latitude. And 'plotIndex' which was meant to plot output of the 
+	first function (i.e. sicReader). It is comprised of two parts. The 
+	firs part is complete but the second part is not. The first part can
+	make plot of several index overlayed on top of oneanother. However,
+	the second part was meant to produce seperate plots for each index
+	and it is still incomplete.
+
+- I need to write and add a documentation to this module. 
+
+
