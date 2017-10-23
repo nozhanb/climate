@@ -10,13 +10,14 @@ from mpl_toolkits.basemap import Basemap
                                             #   regrdless of how big they are.
 
 #data = index.index((2010,2014),['01','02','03'],(40,70),(10,40),fileContent = 'ice',all_years = True)
-#first = energyice.EnergyIce((2010,2012),['09'],(-10,40),(35,75),fileContent = 'energy',all_years = True)
+#first = energyice.EnergyIce((2010,2012),'09',(-10,40),(35,75),fileContent = 'energy',all_years = True)
 
 class EnergyIce:
 
-    def __init__(self, year, month, longitude, latitude, fileContent = 'energy', file_name = False, all_years = False):
+    def __init__(self, fileContent, year, month, longitude, latitude):
         
-        #  file_name must be a list of file names in string format. e.g. ['file1','file2','file3']
+        # fileContent: it has to be a either SIC, 'DivQ', 'DivQ'.
+        #   year must be a list of years in int. format. e.g.  [1979,2014]
         #  month has to be given as a list of integers e.g. [1,5] which stands for Jan. and May.
         #  latitude and longitude must be tuples, float and in degree (0,90), from 0-degree to 90-degree.
         #  all_years: if True it will find the ice cover over all the years between two given years in the file_name.
@@ -35,25 +36,35 @@ class EnergyIce:
         self.lat5 = latitude
         self.lon5 = longitude
         self.totalSize = int(((latitude[1]-latitude[0])*2 + 1)*((longitude[1]-longitude[0])*2 + 1))
-        self.year1, self.year2 = year
         self.fileContent = fileContent
-        if all_years == False:
-            self.filex = file_name
-        elif all_years == True:
-            if fileContent  == 'SIC':
-                self.filex = []
-                for years in range(self.year1, self.year2+1):
-                    self.filex.append('SIC.'+str(years)+'.nc')
-            elif fileContent == 'DivQ':
-                self.filex = []
-                for years in range(self.year1, self.year2+1):
-                    for months in self.month:
-                        self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
-            elif fileContent == 'DivD':
-                self.filex = []
-                for years in range(self.year1, self.year2+1):
-                    for months in self.month:
-                        self.filex.append('DivD.'+str(years)+'.'+months+'.nc')
+        self.filex = []
+        
+#==============================================================================
+#         if all_years == False:
+#             for yearCounter in year:
+#                 if fileContent  == 'SIC':
+#                     self.filex.append('SIC.'+str(yearCounter)+'.nc')
+#                 elif fileContent == 'DivQ':
+#                     for months in self.month:
+#                         self.filex.append('DivQ.'+str(yearCounter)+'.'+months+'.nc')
+#                 elif fileContent == 'DivD':
+#                     for months in self.month:
+#                         self.filex.append('DivD.'+str(yearCounter)+'.'+months+'.nc')
+#         elif all_years == True:
+#==============================================================================
+        self.year1, self.year2 = year[0],year[1]
+        if fileContent  == 'SIC':
+            for years in range(self.year1, self.year2+1):
+                self.filex.append('SIC.'+str(years)+'.nc')
+        elif fileContent == 'DivQ':
+            for years in range(self.year1, self.year2+1):
+                for months in self.month:
+                    self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
+        elif fileContent == 'DivD':
+            for years in range(self.year1, self.year2+1):
+                for months in self.month:
+                    self.filex.append('DivD.'+str(years)+'.'+str(months)+'.nc')
+
 
 
     def sicReader(self,save = True, outputName = None):
@@ -165,8 +176,6 @@ class EnergyIce:
                 *2*numpy.sum(cosValueArray)))
             counter5 = 0
             for counter3 in energyPerCellArrayList:
-                print ("Entering for the",counter5,'time.')
-                print ('This is the shape: --->', counter3.shape)
                 newArray = numpy.add(newArray,counter3)
                 newArray2 = newArray
                 newArray = newArray2
@@ -196,15 +205,15 @@ class EnergyIce:
             elif self.lon5[1] >= 0.0:
                 lonSec = 'E'
             if outputName == None:
-                nameToWrite1 = self.fileContent+'Average'
-                nameToWrite2 = self.fileContent+'Index'
+                nameToWrite1 = self.fileContent+'Index'
+                nameToWrite2 = self.fileContent+'Average'
                 
             if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month)][0:3]+'_'+str(self.lon5[0])+lonFir+str(self.lon5[1])+lonFir+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+latFir,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month)][0:3]+'_'+str(self.lon5[0])+lonFir+str(self.lon5[1])+lonFir+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+latFir,'w')
+                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
             elif len(self.filex) > 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month)][0:3]+'_'+str(self.lon5[0])+lonFir+str(self.lon5[1])+lonFir+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+latFir,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month)][0:3]+'_'+str(self.lon5[0])+lonFir+str(self.lon5[1])+lonFir+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+latFir,'w')
+                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
 
             ff1.write(json.dumps(totalIndexList))
             totalAverageList = totalAverage.tolist()

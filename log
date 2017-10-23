@@ -62,3 +62,19 @@ October 22, 2017
 - I need to write and add a documentation to this module. 
 
 
+October 23, 2017
+
+- I made a few changes to the energyice module and made the argument 
+	part simpler. I removed 'all-years' and converted file_content
+	from a kwargs to args.
+
+- I made a few other minor changes such as ficing the name of the output
+	file and now it can work in both modes of single year and several
+	consecutive years + a few more things.
+
+- I still need to write the documentation and take a look at the month 
+	parameter to see if it produces corrects results if several 
+	month is given in the call part.
+
+
+
