@@ -78,3 +78,16 @@ October 23, 2017
 
 
 
+October 24, 2017
+
+- I removed a module called 'september_mean.py'. It did not contain anything 
+	useful.
+
+- Made a few minor changes to the module.
+
+- Wrote a short description of what each of the arguments do in this module.
+
+- Made a lot of plots. I need to move them to a directory. I still have not 
+	decided. I , also, need to add a log file for the figure.
+
+

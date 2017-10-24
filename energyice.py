@@ -7,30 +7,36 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 #import numpy.ma as ma  #   I do not remember what it does! must be checked.
 #numpy.set_printoptions(threshold=numpy.nan) #   if activated it prints out the numpy arrays in their entierty 
-                                            #   regrdless of how big they are.
+                                                #   regrdless of how big they are.
 
-#data = index.index((2010,2014),['01','02','03'],(40,70),(10,40),fileContent = 'ice',all_years = True)
-#first = energyice.EnergyIce((2010,2012),'09',(-10,40),(35,75),fileContent = 'energy',all_years = True)
+#ice = energyice.EnergyIce('SIC',(2010,2014),['01','02','03'],(-10,40),(35,75))
+#energy = energyice.EnergyIce('DivQ',(2010,2012),['09'],(-10,40),(35,75))    for Energy files
 
 class EnergyIce:
 
     def __init__(self, fileContent, year, month, longitude, latitude):
         
-        # fileContent: it has to be a either SIC, 'DivQ', 'DivQ'.
-        #   year must be a list of years in int. format. e.g.  [1979,2014]
-        #  month has to be given as a list of integers e.g. [1,5] which stands for Jan. and May.
-        #  latitude and longitude must be tuples, float and in degree (0,90), from 0-degree to 90-degree.
-        #  all_years: if True it will find the ice cover over all the years between two given years in the file_name.
-        #  longitude and latitude MUST be integer numbers with no Fraction part (in the line totalAreaInMeter you will face problem if you give fraction because of the multipication by 2)!!!
-
+        #   fileContent: it has to be a either 'SIC', 'DivQ', 'DivQ'.
+        #   year: must be a tuple of int. format. e.g.  (1979,2014). If you intend to do it for only one year repeat the 
+        #       the year. e.g. (2010,2010)
+        #   month: has to be given as a list of strings with a preceding zero. e.g. ['01','05'] which stands for Jan. 
+        #       and May.
+        #   longitude and latitude: must be tuples, integers and in degree (0,90), from 0-degree to 90-degree. for latitude
+        #       and (0,360) for longitude. 
+        #   !!!!!!!!!
+        #   NOTE:(in the line totalAreaInMeter you will face problem if longitude or latitude are given in fraction 
+        #       because of the multipication by 2)!!!
+        #   !!!!!!!!!
+        
+        #!!! IMPORTANT !!!
         #   testsL Check for the last latitude at 90 and also at 0 and make sure the right value is generated.        
         #   Watch the 30 that is hard coded in averageEnergyPerCellPerYear array. It will produce wrong average for 31-day months !!!
         #   in iceReader where the average is taken you have to account for the zeros you put in there as a replace for
         #   ---> regions with ice value ---. First, check if --- realy exist in your file. If so, find a solution to find the 
         #   correct aerage value.
-         
+        #   Notice the use of ordered dictionary.
         
-        self.month = month  #   must be a list of number in string format e.g. ['01','09','12'] ---> Jan. Sep. and Dec.
+        self.month = month
         self.lat = ((90-latitude[0])*2,(90-latitude[1])*2)
         self.lon = ((abs(180)+longitude[0])*2,(abs(180)+longitude[1])*2)
         self.lat5 = latitude
@@ -39,19 +45,6 @@ class EnergyIce:
         self.fileContent = fileContent
         self.filex = []
         
-#==============================================================================
-#         if all_years == False:
-#             for yearCounter in year:
-#                 if fileContent  == 'SIC':
-#                     self.filex.append('SIC.'+str(yearCounter)+'.nc')
-#                 elif fileContent == 'DivQ':
-#                     for months in self.month:
-#                         self.filex.append('DivQ.'+str(yearCounter)+'.'+months+'.nc')
-#                 elif fileContent == 'DivD':
-#                     for months in self.month:
-#                         self.filex.append('DivD.'+str(yearCounter)+'.'+months+'.nc')
-#         elif all_years == True:
-#==============================================================================
         self.year1, self.year2 = year[0],year[1]
         if fileContent  == 'SIC':
             for years in range(self.year1, self.year2+1):
@@ -223,16 +216,17 @@ class EnergyIce:
         return totalAverage, numpy.array(totalIndexList)
         
         
-def europeMap(data,numberOfYears,longitude,latitude, plotType = 'mesh'):
+        
+def europeMap(data,numberOfYears,longitude,latitude, plotType = 'mesh',figTitle = None):
     lat1, lat2 = latitude
     latitude123 = numpy.arange(lat1,lat2+0.5,0.5)
     lon1, lon2 = longitude
-    longitude123= numpy.arange(lon1, lon2+0.5, 0.5)
+    longitude123= numpy.arange(lon1, lon2+0.5,0.5)
     years = int(numberOfYears)
 
     fig1,ax1 = plt.subplots(1,1,figsize=(13,13))
 
-    ax1.set_title(r'September mean of latent energy over Europe (1979-2014)')
+    ax1.set_title(str(figTitle))
 
     map1 = Basemap(projection='cyl',llcrnrlon=-10.0,llcrnrlat=35.0, \
     urcrnrlon=40.0,urcrnrlat=75.0, lon_0 = 30, lat_0 = 30,\
@@ -250,7 +244,7 @@ def europeMap(data,numberOfYears,longitude,latitude, plotType = 'mesh'):
         colorf = map1.contourf(x, y, myData, cmap=cmap)
         cb = map1.colorbar(colorf, location='bottom', pad="5%")   
 #    map1.colorbar(colormesh)
-    cb.set_label(r'Latent Energy (W)')
+    cb.set_label(r'Latent Energy Flux (W/m^2)')
 
     map1.drawparallels(numpy.arange(35,76,10),labels=[1,0,0,0], linewidth=0.0)
     map1.drawmeridians(numpy.arange(-10,41,10),labels=[0,0,0,1], linewidth=0.0)
