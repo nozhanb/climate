@@ -21,8 +21,9 @@ class EnergyIce:
         #       the year. e.g. (2010,2010)
         #   month: has to be given as a list of strings with a preceding zero. e.g. ['01','05'] which stands for Jan. 
         #       and May.
-        #   longitude and latitude: must be tuples, integers and in degree (0,90), from 0-degree to 90-degree. for latitude
-        #       and (0,360) for longitude. 
+        #   longitudes and latitudes must be given in tuple format and be aither integer or with 0.5 decimal. Also, the 
+        #   sign convention has to be followed. Meaning that for western and southern hemisphere the sign must be negative
+        #   and positive for northern and eastern hemisphere. e.g. longitude = (-180.,47.5), latitude=(-43.5,69.5).
         #   !!!!!!!!!
         #   NOTE:(in the line totalAreaInMeter you will face problem if longitude or latitude are given in fraction 
         #       because of the multipication by 2)!!!
@@ -44,8 +45,16 @@ class EnergyIce:
         self.totalSize = int(((latitude[1]-latitude[0])*2 + 1)*((longitude[1]-longitude[0])*2 + 1))
         self.fileContent = fileContent
         self.filex = []
-        
         self.year1, self.year2 = year[0],year[1]
+        self.totalLon = numpy.arange(-180,180,0.5)
+        self.totalLat = numpy.arange(90,29.5,-0.5)
+        self.lonInitialIndex = numpy.where(self.totalLon==float(self.lon5[0]))
+        self.lonEndIndex = numpy.where(self.totalLon==float(self.lon5[1]))
+        self.latInitialIndex = numpy.where(self.totalLat==float(self.lat5[1])) #   Notice that latitude is ordered differently.
+        self.latEndIndex = numpy.where(self.totalLat==float(self.lat5[0]))     #   Notice that latitude is ordered differently.
+        self.finalLon = numpy.arange(self.lonInitialIndex[0][0], self.lonEndIndex[0][0] + 1)
+        self.finalLat = numpy.arange(self.latEndIndex[0][0], self.latInitialIndex[0][0] - 1, -1)
+        
         if fileContent  == 'SIC':
             for years in range(self.year1, self.year2+1):
                 self.filex.append('SIC.'+str(years)+'.nc')
@@ -66,22 +75,17 @@ class EnergyIce:
         totalIceFraction = []
         for fileName in self.filex:
             for monthNo in self.month:
-                printName = fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'
+                printName = fileName+'_'+str(monthNo)+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'
                 loaded_file = netCDF4.Dataset(fileName)
-                latiInverse = loaded_file.variables['g0_lat_1'][int(self.lat[1]):int(self.lat[0]) + 1]
-                lati = numpy.flipud(latiInverse.reshape((latiInverse.size,1))).flatten('C')
-                longi = loaded_file.variables['g0_lon_2'][int(self.lon[0]):int(self.lon[1]) + 1]
                 numerator = numpy.array([])
                 denominator = numpy.array([])
-                latCounter = numpy.arange(self.lat[0] + 1, self.lat[1], -1)
-                lonCounter = numpy.arange(self.lon[0], self.lon[1] + 1, 1)
 
                 counter1 = 0                    
-                for i in lati:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
+                for i in self.finalLat:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
                     lat1 = i
                     counter2 = 0
-                    for j in longi: #   similar to lati but it stands for longitudes
-                        surat = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][monthNo,latCounter[counter1],lonCounter[counter2]]*(numpy.cos(lat1*(3.14/180))*0.5)*0.5)
+                    for j in self.finalLon: #   similar to lati but it stands for longitudes
+                        surat = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),i,j]*(numpy.cos(lat1*(3.14/180))*0.5)*0.5)
                         makh = numpy.array((numpy.cos(lat1*(3.14/180))*0.5)*0.5)    #   area of each cell (including the conversion between radian and degree).
                         numerator = numpy.append(numerator,numpy.array(surat))      #   stores the value of the ice fraction at each cell at each step.
                         denominator = numpy.append(denominator,makh)                #   stores the value of the area of each cell at each step.
@@ -93,7 +97,7 @@ class EnergyIce:
                 
                 sumnum = numpy.sum(numerator)       #   This is where we run a sum function over the series of ice fraction at each cell to find the total ice fraction.
                 sumdenom = numpy.sum(denominator)   #   We run a sum over a series of area of each cell to find the total area of the region.
-                print 'Dic name --->', printName
+                print printName, '------> DONE!!!'
                 self.output_dic[fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'] = float(sumnum)/float(sumdenom)
                 totalIceFraction.append(float(sumnum)/float(sumdenom))
         
@@ -119,8 +123,8 @@ class EnergyIce:
                     elif outputName is not None:
                         nameToWrite = outputName
                     ff = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[monthNo][0:3]+'_'\
-                    +str(self.lon5[0])+lonFir+str(self.lon5[1])+lonFir+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+\
-                    latFir,'w')
+                    +str(self.lon5[0])+lonFir+str(self.lon5[1])+lonSec+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+\
+                    latSec,'w')
                     ff.write(json.dumps(totalIceFraction))
                     ff.close()
 
@@ -137,25 +141,20 @@ class EnergyIce:
 
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(fileName)
-            latiInverse = loaded_file.variables['lat_NH'][int(self.lat[1]):int(self.lat[0]) + 1]
-            lati = numpy.flipud(latiInverse.reshape((latiInverse.size,1))).flatten('C')
-            longi = loaded_file.variables['lon'][int(self.lon[0]):int(self.lon[1]) + 1]
             averageEnergyPerDayOverEurope = []
             cosValueArray = numpy.array([])
             cellAreaEnergyArray = numpy.array([])
             energyPerCellArrayList = []
-            latCounter = numpy.arange(self.lat[0] + 1, self.lat[1], -1)
-            lonCounter = numpy.arange(self.lon[0], self.lon[1] + 1, 1)
 
             for time in range(0,30):
                 energyPerCellArray = numpy.array([])
                 counter1 = 0
-                for i in lati:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
-                    lat2 = i + 0.5  
+                for i in self.finalLat:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
+                    lat2 = i + 0.5
                     counter2 = 0
-                    for j in longi: #   similar to lati but it stands for longitudes
-                        cellEnergyWattPerMeter = numpy.array(loaded_file.variables['Divergence'][time,latCounter[counter1],lonCounter[counter2]])
-                        if int(lat2) == 90:
+                    for j in self.finalLon: #   similar to lati but it stands for longitudes
+                        cellEnergyWattPerMeter = numpy.array(loaded_file.variables['Divergence'][time,i,j])
+                        if (lat2) == 90:
                             cellEnergyWattPerMeter = 0      # I am not sure about this line. Needs to be tested !!!
                         cellAreaEnergy = cellEnergyWattPerMeter*numpy.cos(lat2*(3.14/180))
                         cellAreaEnergyArray = numpy.append(cellAreaEnergyArray,cellAreaEnergy)

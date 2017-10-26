@@ -94,3 +94,18 @@ October 24, 2017
 October 25, 2017
 
 - Two eller tre minor changes to the sicReader method of energyice module.
+
+October 26, 2017
+
+- I made a semi-major change to the energyice module. I changed the way it 
+	reads in the longitude and latitudes. The problem was that for 
+	longitude interval of (0,360) the code would crash. The code could 
+	read longitudes from 0 to 179.5 (or 180) but it would not be able to
+	read values above that because of the way I had implemented the 
+	longitudes and latitudes in the code. So I fixed the problem by 
+	taking a more simplere approach (compared to flatt and flip commands)
+	to read in the longs and lats in the beginning. 
+
+- Notice that from now on longs and lats must be given in a negative and 
+	positive format (e.g. lon=(-180,37.5),lat=(-30,67.5)).
+
