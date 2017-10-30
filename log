@@ -109,3 +109,11 @@ October 26, 2017
 - Notice that from now on longs and lats must be given in a negative and 
 	positive format (e.g. lon=(-180,37.5),lat=(-30,67.5)).
 
+October 30, 2017
+
+- I made some minor changes to the energyReader function and made it lighter.
+	Now it does not create the numpy.cos() eerysingle time. Also, I removed
+	some of un-used counters (e.g. counter2, counter5).
+
+- I made a small change to the europeMap function and now it can set the frame
+	automatically based on the given longs and lats.

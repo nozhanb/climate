@@ -137,47 +137,42 @@ class EnergyIce:
         self.energyIndexDictionary = collections.OrderedDict()
         totalAverage = numpy.zeros((self.totalSize,))
         newArray = numpy.zeros((self.totalSize,))
+        cosValueArray = numpy.array([])
         totalIndexList = []
+        for i in self.finalLat:
+            lat2 = i + 0.5
+            cosValue = numpy.cos(lat2*(3.14/180.))
+            cosValueArray = numpy.append(cosValueArray,cosValue)
 
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(fileName)
             averageEnergyPerDayOverEurope = []
-            cosValueArray = numpy.array([])
             cellAreaEnergyArray = numpy.array([])
             energyPerCellArrayList = []
 
             for time in range(0,30):
                 energyPerCellArray = numpy.array([])
-                counter1 = 0
                 for i in self.finalLat:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
-                    lat2 = i + 0.5
-                    counter2 = 0
                     for j in self.finalLon: #   similar to lati but it stands for longitudes
                         cellEnergyWattPerMeter = numpy.array(loaded_file.variables['Divergence'][time,i,j])
-                        if (lat2) == 90:
+                        lat3 = i + 0.5
+                        if lat3 == 90.:
                             cellEnergyWattPerMeter = 0      # I am not sure about this line. Needs to be tested !!!
                         cellAreaEnergy = cellEnergyWattPerMeter*numpy.cos(lat2*(3.14/180))
                         cellAreaEnergyArray = numpy.append(cellAreaEnergyArray,cellAreaEnergy)
                         energyPerCellArray = numpy.append(energyPerCellArray,cellEnergyWattPerMeter)
-                        counter2 += 1
-                    cosValue = numpy.cos(lat2*(3.14/180.))
-                    cosValueArray = numpy.append(cosValueArray,cosValue)
-                    counter1 += 1
                 energyPerCellArrayList.append(energyPerCellArray)
-                averageEnergyPerDayOverEurope.append(float(numpy.sum(cellAreaEnergyArray))/float((self.lon5[1]-self.lon5[0])\
-                *2*numpy.sum(cosValueArray)))
-            counter5 = 0
+                averageEnergyPerDayOverEurope.append(float(numpy.sum(cellAreaEnergyArray))/float(self.finalLon)*numpy.sum(cosValueArray))
             for counter3 in energyPerCellArrayList:
                 newArray = numpy.add(newArray,counter3)
-                newArray2 = newArray
-                newArray = newArray2
-                counter5 += 1
+#                newArray2 = newArray
+#                newArray = newArray2
             finalIndex = sum(averageEnergyPerDayOverEurope)/30.
             self.energyIndexDictionary['energyIndexPerYear'+fileName[5:12]] = finalIndex
             totalIndexList.append(finalIndex)
-            self.averagePerYearDictionary['averageEnergyPerCellPerYear'+fileName[5:12]] = newArray2/30.
+            self.averagePerYearDictionary['averageEnergyPerCellPerYear'+fileName[5:12]] = newArray/30.
             totalAverage = numpy.add(totalAverage,self.averagePerYearDictionary['averageEnergyPerCellPerYear'+fileName[5:12]])
-            print fileName[5:12], '-------------> DONE!!!' 
+            print fileName[5:12], '-------------> DONE!!!'
 
         if save == True:
             if self.lat5[0] < 0.0:
@@ -227,14 +222,14 @@ def europeMap(data,numberOfYears,longitude,latitude, plotType = 'mesh',figTitle 
 
     ax1.set_title(str(figTitle))
 
-    map1 = Basemap(projection='cyl',llcrnrlon=-10.0,llcrnrlat=35.0, \
-    urcrnrlon=40.0,urcrnrlat=75.0, lon_0 = 30, lat_0 = 30,\
+    map1 = Basemap(projection='cyl',llcrnrlon=lon1,llcrnrlat=lat1, \
+    urcrnrlon=lon2,urcrnrlat=lat2, lon_0 = 30, lat_0 = 30,\
     rsphere=6371200., resolution = 'l', area_thresh=10000)
 
     lons,lats = numpy.meshgrid(longitude123,latitude123)
     x, y = map1(lons,lats)
     data = data/years
-    myData = data.reshape((81,101))
+    myData = data.reshape((latitude123.size,longitude123.size))
     cmap = plt.get_cmap('jet')
     if plotType == 'mesh':
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
