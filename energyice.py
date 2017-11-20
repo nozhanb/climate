@@ -3,9 +3,10 @@ import numpy
 import netCDF4
 import calendar
 import collections  #   to make an ordered dictionary.
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
-#import numpy.ma as ma  #   I do not remember what it does! must be checked.
+#import numpy.ma as ma  #   It is used to work with MASKED arrays. See numpy manual for more details on masked arrays.
 #numpy.set_printoptions(threshold=numpy.nan) #   if activated it prints out the numpy arrays in their entierty 
                                                 #   regrdless of how big they are.
 
@@ -14,7 +15,7 @@ from mpl_toolkits.basemap import Basemap
 
 class EnergyIce:
 
-    def __init__(self, fileContent, year, month, longitude, latitude):
+    def __init__(self, fileContent, year, month, longitude, latitude, allYears = True):
         
         #   fileContent: it has to be a either 'SIC', 'DivQ', 'DivQ'.
         #   year: must be a tuple of int. format. e.g.  (1979,2014). If you intend to do it for only one year repeat the 
@@ -46,24 +47,29 @@ class EnergyIce:
         self.fileContent = fileContent
         self.filex = []
         self.year1, self.year2 = year[0],year[1]
-        self.totalLon = numpy.arange(-180,180,0.5)
-        self.totalLat = numpy.arange(90,29.5,-0.5)
-        self.lonInitialIndex = numpy.where(self.totalLon==float(self.lon5[0]))
-        self.lonEndIndex = numpy.where(self.totalLon==float(self.lon5[1]))
-        self.latInitialIndex = numpy.where(self.totalLat==float(self.lat5[1])) #   Notice that latitude is ordered differently.
-        self.latEndIndex = numpy.where(self.totalLat==float(self.lat5[0]))     #   Notice that latitude is ordered differently.
-        self.finalLon = numpy.arange(self.lonInitialIndex[0][0], self.lonEndIndex[0][0] + 1)
-        self.finalLat = numpy.arange(self.latEndIndex[0][0], self.latInitialIndex[0][0] - 1, -1)
+        totalLon = numpy.arange(-180,180,0.5)
+        totalLat = numpy.arange(90,29.5,-0.5)
+        lonInitialIndex = numpy.where(totalLon==float(self.lon5[0]))
+        lonEndIndex = numpy.where(totalLon==float(self.lon5[1]))
+        latInitialIndex = numpy.where(totalLat==float(self.lat5[0]))
+        latEndIndex = numpy.where(totalLat==float(self.lat5[1]))
+        self.finalLon = numpy.arange(lonInitialIndex[0][0], lonEndIndex[0][0] + 1)
+        self.finalLat = numpy.arange(latEndIndex[0][0], latInitialIndex[0][0] + 1)  #   Notice that latitude is ordered differently.
+        
+        if allYears == True:
+            self.yearRange = range(self.year1, self.year2+1)        
+        elif allYears == False:
+            self.yearRange = year
         
         if fileContent  == 'SIC':
-            for years in range(self.year1, self.year2+1):
-                self.filex.append('SIC.'+str(years)+'.nc')
+            for years in self.yearRange:
+                    self.filex.append('SIC.'+str(years)+'.nc')
         elif fileContent == 'DivQ':
-            for years in range(self.year1, self.year2+1):
+            for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
         elif fileContent == 'DivD':
-            for years in range(self.year1, self.year2+1):
+            for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivD.'+str(years)+'.'+str(months)+'.nc')
 
@@ -76,31 +82,20 @@ class EnergyIce:
         for fileName in self.filex:
             for monthNo in self.month:
                 printName = fileName+'_'+str(monthNo)+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'
-                loaded_file = netCDF4.Dataset(fileName)
-                numerator = numpy.array([])
-                denominator = numpy.array([])
-
-                counter1 = 0                    
-                for i in self.finalLat:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
-                    lat1 = i
-                    counter2 = 0
-                    for j in self.finalLon: #   similar to lati but it stands for longitudes
-                        surat = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),i,j]*(numpy.cos(lat1*(3.14/180))*0.5)*0.5)
-                        makh = numpy.array((numpy.cos(lat1*(3.14/180))*0.5)*0.5)    #   area of each cell (including the conversion between radian and degree).
-                        numerator = numpy.append(numerator,numpy.array(surat))      #   stores the value of the ice fraction at each cell at each step.
-                        denominator = numpy.append(denominator,makh)                #   stores the value of the area of each cell at each step.
-                        if int(lat1) == 90:     # if the upper edge (upper latitude) is 90, equate the are of that region to zero because the cos(90) = 0.
-                            numerator = numpy.append(numerator,0)       #   store the values similar to the line above.
-                            denominator = numpy.append(denominator,0)   #   similar to above.
-                        counter2 += 1   #   at each step increment by 1.
-                    counter1 += 1       #   increment by 1.
-                
-                sumnum = numpy.sum(numerator)       #   This is where we run a sum function over the series of ice fraction at each cell to find the total ice fraction.
-                sumdenom = numpy.sum(denominator)   #   We run a sum over a series of area of each cell to find the total area of the region.
+                loaded_file = netCDF4.Dataset(fileName)     #   Notice the following arrays are MASKED arrays!!!
+                fastLat = numpy.ma.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
+                fastLon = numpy.ma.array(loaded_file.variables['g0_lon_2'][self.finalLon[0]:self.finalLon[-1]+1])
+                cosValue = numpy.cos(fastLat*(3.14/180.))
+                cosValue = cosValue.reshape(self.finalLat.size, 1)
+                maskedIceFraction = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])*cosValue
+                #   There are some cells in which the value of ice fraction is e+29 (i.e. regions covered with land) so we set them to zero.
+                iceFractionMaskedWithZero = numpy.ma.masked_greater(maskedIceFraction,10).filled(0.)
+                numerator = numpy.sum(numpy.sum(iceFractionMaskedWithZero,0))
+                denominator = fastLon.size*numpy.sum(numpy.sum(cosValue,0))
+                iceIndex = numerator/denominator
+                self.output_dic[fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'] = iceIndex
+                totalIceFraction.append(iceIndex)
                 print printName, '------> DONE!!!'
-                self.output_dic[fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'] = float(sumnum)/float(sumdenom)
-                totalIceFraction.append(float(sumnum)/float(sumdenom))
-        
                 if save == True:
                     if self.lat5[0] < 0.0:
                         latFir = 'S'
@@ -122,58 +117,38 @@ class EnergyIce:
                         nameToWrite = 'iceFraction'
                     elif outputName is not None:
                         nameToWrite = outputName
-                    ff = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[monthNo][0:3]+'_'\
-                    +str(self.lon5[0])+lonFir+str(self.lon5[1])+lonSec+'_'+str(self.lat5[0])+latFir+str(self.lat5[1])+\
+                    ff = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(monthNo)][0:3]+'_'\
+                    +str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
                     latSec,'w')
                     ff.write(json.dumps(totalIceFraction))
                     ff.close()
+        return numpy.array(totalIceFraction)
 
-        return self.output_dic
-
-
+##########################
+#   REMEMBER TO CHECK FOR LEAP YEARS!!!
+##########################
         
     def energyReader(self,save = True, outputName = None):
         self.averagePerYearDictionary = collections.OrderedDict()   #   This dictionary collects the average energy during each month for each montha for each year for each cell.
         self.energyIndexDictionary = collections.OrderedDict()
-        totalAverage = numpy.zeros((self.totalSize,))
-        newArray = numpy.zeros((self.totalSize,))
-        cosValueArray = numpy.array([])
-        totalIndexList = []
-        for i in self.finalLat:
-            lat2 = i + 0.5
-            cosValue = numpy.cos(lat2*(3.14/180.))
-            cosValueArray = numpy.append(cosValueArray,cosValue)
+        EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        totalFinalIndex = numpy.array([])
 
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(fileName)
-            averageEnergyPerDayOverEurope = []
-            cellAreaEnergyArray = numpy.array([])
-            energyPerCellArrayList = []
-
-            for time in range(0,30):
-                energyPerCellArray = numpy.array([])
-                for i in self.finalLat:      #   lati is a list of all latitude between an initial and final latitudes given by the user.
-                    for j in self.finalLon: #   similar to lati but it stands for longitudes
-                        cellEnergyWattPerMeter = numpy.array(loaded_file.variables['Divergence'][time,i,j])
-                        lat3 = i + 0.5
-                        if lat3 == 90.:
-                            cellEnergyWattPerMeter = 0      # I am not sure about this line. Needs to be tested !!!
-                        cellAreaEnergy = cellEnergyWattPerMeter*numpy.cos(lat2*(3.14/180))
-                        cellAreaEnergyArray = numpy.append(cellAreaEnergyArray,cellAreaEnergy)
-                        energyPerCellArray = numpy.append(energyPerCellArray,cellEnergyWattPerMeter)
-                energyPerCellArrayList.append(energyPerCellArray)
-                averageEnergyPerDayOverEurope.append(float(numpy.sum(cellAreaEnergyArray))/float(self.finalLon)*numpy.sum(cosValueArray))
-            for counter3 in energyPerCellArrayList:
-                newArray = numpy.add(newArray,counter3)
-#                newArray2 = newArray
-#                newArray = newArray2
-            finalIndex = sum(averageEnergyPerDayOverEurope)/30.
-            self.energyIndexDictionary['energyIndexPerYear'+fileName[5:12]] = finalIndex
-            totalIndexList.append(finalIndex)
-            self.averagePerYearDictionary['averageEnergyPerCellPerYear'+fileName[5:12]] = newArray/30.
-            totalAverage = numpy.add(totalAverage,self.averagePerYearDictionary['averageEnergyPerCellPerYear'+fileName[5:12]])
-            print fileName[5:12], '-------------> DONE!!!'
-
+            days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
+            fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
+            cosValue = numpy.cos(fastLat*(3.14/180.))
+            cosValue = cosValue.reshape(1,self.finalLat.size,1)
+            fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
+            numerator = numpy.sum(numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days))
+            denominator = self.finalLon.size*numpy.sum(cosValue)
+            finalIndex = numerator/denominator
+            totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
+            print fileName[5:12], '-----> DONE!!!'
+#            print 'Average index (Wm-2)----->', finalIndex
+        print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -202,57 +177,139 @@ class EnergyIce:
                 ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                 ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
 
-            ff1.write(json.dumps(totalIndexList))
-            totalAverageList = totalAverage.tolist()
-            ff2.write(json.dumps(totalAverageList))
+            ff1.write(json.dumps(totalFinalIndex.tolist()))
+            ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
             ff1.close()
             ff2.close()
-        return totalAverage, numpy.array(totalIndexList)
+        return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
+        
+
+    def fitting(self, xData, yData, fitFunction = None, **params):
+        import scipy
+        if fitFunction is None:
+            pars = numpy.polyfit(xData,yData,2)
+            poly = numpy.poly1d(pars)
+            return poly(xData), pars
+        elif fitFunction is not None:
+            def defined(xData,params):
+                return fitFunction
+            popt, pcov = scipy.optimize.curve_fit(defined, xData, yData)
+            return defined(xData,*popt)
         
         
+
+    def smoothing(self, inputData, smoothingLength = 1):
+        "This function applies a smoothing technique to a given region and makes the features of that region more clear."
+        #   A square is drwan around each point. To do so, we need to introduce 9 data points (including the central).
+        #   This function smooths out longitudinally. It starts from the starting point and smooths out along the starting 
+        #   latitude. Once it reaches the last longitude (indicated by longitude in endingPoint) it moves to the upper 
+        #   latitude and the process is repeated until it reached the very last point (endingPoint).
+        #   To make things easier it is best to think of the startingPoint and endingPoint as the lower-left corner and 
+        #   the upper-right corner of the smoothing frame/region.
+        #   smoothingLength: 1 means the immediate neighbours (i.e. half a degree distance between the central point and 
+        #   the neighbouring points). If the user is intrested in one degree distance then number 2 must be placed. 
+        #   Generally, the following formula must be followed to set the desired distance/radius around the central point
+        #   desired distance (in degree) = smoothingLength*0.5
         
-def europeMap(data,numberOfYears,longitude,latitude, plotType = 'mesh',figTitle = None):
+        
+        self.sLength = smoothingLength
+        self.startLat = self.totalLat[0]
+        self.startLon = self.totalLon[0]
+        self.endLat = self.totalLat[-1]
+        self.endLon = self.totalLon[-1]
+
+        # The coordinate of the neighbouring points:
+        self.p0 = (self.startLat-self.sLength,self.startLon-self.sLength)
+        self.p1 = (self.startLat-self.sLength,self.startLon)
+        self.p2 = (self.startLat-self.sLength,self.startLon+self.sLength)
+        self.p3 = (self.startLat,self.startLon-self.sLength)
+        self.pCenter = (self.startLat,self.startLon)     #   This is the central/original point!!!
+        self.p5 = (self.startLat,self.startLon+self.sLength)
+        self.p6 = (self.startLat+self.sLength,self.startLon-self.sLength)
+        self.p7 = (self.startLat+self.sLength,self.startLon)
+        self.p8 = (self.startLat+self.sLength,self.startLon+self.sLength)
+
+        '''
+        cos = numpy.arange(90,29.5,-0.5)
+        cosValue = numpy.cos(cos*3.14/180.)
+        for lati in self.totalLat:
+            for loni in self.totalLon:
+                numerator = numpy.sum(cosValue[lati]*)
+
+
+        self.areaNum = numpy.cos(self.pCenter[0]-)
+        self.areaDen = 
+
+                
+           0.5     0.5
+        6-------7-------8
+        |       |       |
+        |       |       |
+        3-------C-------5
+        |       |       |
+        |       |       |
+        0-------1-------2
+
+        '''
+
+        
+def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
+     plotType = 'contourf', store = False, name = None):
+
     lat1, lat2 = latitude
     latitude123 = numpy.arange(lat1,lat2+0.5,0.5)
     lon1, lon2 = longitude
     longitude123= numpy.arange(lon1, lon2+0.5,0.5)
-    years = int(numberOfYears)
 
     fig1,ax1 = plt.subplots(1,1,figsize=(13,13))
-
-    ax1.set_title(str(figTitle))
 
     map1 = Basemap(projection='cyl',llcrnrlon=lon1,llcrnrlat=lat1, \
     urcrnrlon=lon2,urcrnrlat=lat2, lon_0 = 30, lat_0 = 30,\
     rsphere=6371200., resolution = 'l', area_thresh=10000)
 
+    if sphereProjection == True:
+        map1 = Basemap(projection='npstere', boundinglat=60, llcrnrlon=lon1,llcrnrlat=lat1, \
+        urcrnrlon=lon2, urcrnrlat=lat2, lon_0 = 270, round=True)
+        
     lons,lats = numpy.meshgrid(longitude123,latitude123)
     x, y = map1(lons,lats)
-    data = data/years
     myData = data.reshape((latitude123.size,longitude123.size))
+    myData = numpy.flipud(myData)   #   This line is important!!!
     cmap = plt.get_cmap('jet')
     if plotType == 'mesh':
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
         cb = map1.colorbar(colormesh, location='bottom', pad="5%")
     elif plotType == 'contourf':
-        colorf = map1.contourf(x, y, myData, cmap=cmap)
-        cb = map1.colorbar(colorf, location='bottom', pad="5%")   
-#    map1.colorbar(colormesh)
-    cb.set_label(r'Latent Energy Flux (W/m^2)')
+        v = numpy.arange(-200, 201, 20)
+        cmap = plt.cm.get_cmap('jet')
+        bounds = v
+        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+        colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm,extend = 'both')
+        cb = map1.colorbar(colorf, location='bottom', pad="5%")
+        cb.cmap.set_under('m')
+        cb.cmap.set_over('w')
+        cb.set_label(r'Latent energy divergence (Wm-2)')
 
-    map1.drawparallels(numpy.arange(35,76,10),labels=[1,0,0,0], linewidth=0.0)
-    map1.drawmeridians(numpy.arange(-10,41,10),labels=[0,0,0,1], linewidth=0.0)
+    map1.drawparallels(numpy.arange(lat1,lat2 + 1,10),labels=[1,0,0,0], linewidth=0.0)
+    map1.drawmeridians(numpy.arange(lon1,lon2 + 1,10),labels=[0,0,0,1], linewidth=0.0)
+
+    if sphereProjection == True:
+        map1.drawmeridians([-150,-120,-90,-60,-30,0,30,60,90,120,150,180], labels=[1,1,1,1], linewidth=1.0)
+        map1.drawparallels(numpy.arange(60,81,10),labels=[1,1,1,1], linewidth=1.0)
 
     map1.drawcoastlines()
     map1.bluemarble()
     map1.etopo()
     map1.drawcountries()
+    ax1.set_title(str(figTitle))
+    ax1.annotate('Ave = 5.01', xy = (10,40), xytext=(40,76))
+    if store == True:
+        plt.savefig('/home/nba035/plot/'+name+'.eps',dpi = 80, format = 'eps')
 
-#    cbar = map1.colorbar(ice,location='right',pad="3%")
+    plt.show()
 
-    plt.show()    
 
-        
+
 def plotIndex(xdata, ydata, numberofmonth, overplot = False, inputClass = 'array'):
 
     #   xdata: give the initial and final year in int and tuple form.

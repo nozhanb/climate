@@ -117,3 +117,11 @@ October 30, 2017
 
 - I made a small change to the europeMap function and now it can set the frame
 	automatically based on the given longs and lats.
+
+
+November 20, 2017
+
+I mhave made some major changes to the energyice.py. Now it takes advantage of 
+multi dimensional array calculation so it has become ALOT FASTER (from 12 hours 
+less than 1 min thanks to Rune!). There are some other changes that I have made 
+to the file. I will get to them later.
