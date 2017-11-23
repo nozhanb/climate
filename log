@@ -125,3 +125,8 @@ I mhave made some major changes to the energyice.py. Now it takes advantage of
 multi dimensional array calculation so it has become ALOT FASTER (from 12 hours 
 less than 1 min thanks to Rune!). There are some other changes that I have made 
 to the file. I will get to them later.
+
+November 23, 2017
+
+The function "landEnergyReader" was added to energyice.py. It only reads the data 
+overland area. Still needs to be fixed. 
