@@ -79,7 +79,6 @@ class EnergyIce:
 
 
 
-
     def sicReader(self,save = True, outputName = None):
         ''' This function reads in a .nc file and returns a dictionary of differnt indices for indicated months.'''
         self.output_dic = collections.OrderedDict() #   Notice that it MUST be an Ordered Dictionary!!!
@@ -94,7 +93,7 @@ class EnergyIce:
                 cosValue = cosValue.reshape(self.finalLat.size, 1)
                 maskedIceFraction = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])*cosValue
                 #   There are some cells in which the value of ice fraction is e+29 (i.e. regions covered with land) so we set them to zero.
-#                landCoor = numpy.ma.masked_less_equal(maskedIceFraction,1).filled(0.)
+#                landCoor = numpy.ma.masked_less(maskedIceFraction,1.5).filled(0.)
 #                print 'This is the dimension of the landcoor: ', landCoor.shape               
                 iceFractionMaskedWithZero = numpy.ma.masked_greater(maskedIceFraction,10).filled(0.)
                 numerator = numpy.sum(numpy.sum(iceFractionMaskedWithZero,0))
@@ -151,7 +150,7 @@ class EnergyIce:
             cosValue = cosValue.reshape(1,self.finalLat.size,1)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
-            numerator = numpy.sum(numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days))
+            numerator = numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days)
             denominator = self.finalLon.size*numpy.sum(cosValue)
             finalIndex = numerator/denominator
             totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
@@ -200,24 +199,41 @@ class EnergyIce:
         totalFinalIndex = numpy.array([])
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         europeCoor = numpy.fromfile('europeCoordinate',float,-1,",")
-        europeCoor = europeCoor.reshape(30,81,101)
+        europeCoor = europeCoor.reshape(30,81,101)   #   The number of days in this line does not count for LEAP years.
         maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(europeCoor, 1))
         
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
+            fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
             cosValue = numpy.cos(fastLat*(3.14/180.))
             cosValue = cosValue.reshape(1,self.finalLat.size,1)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
-            numerator = numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days)
-            denominator = 124560.*numpy.sum(cosValue)   #   124560  the  number of unmasked cells
-            finalIndex = numerator/denominator
-            totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
+            localIndex = numpy.array([])
+            for i in range(self.finalLat.size):
+                numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
+                denominator = numpy.count_nonzero(fastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
+                if denominator == 0.:
+                    localIndex = numpy.append(localIndex,0.)
+                elif denominator != 0.:
+                    localIndex = numpy.append(localIndex,numerator/denominator)
+#                print i,'----->',fastLat[i],fastEnergy[0:1,i:i+1,0:1], denominator, localIndex
+#                for index in numpy.ndindex(fastEnergy[0:1,i:i+1,0:1].shape):
+#                    print index,'--->',i,fastLat[i],fastLon[index[2]] ,numpy.count_nonzero(fastEnergy[:,i:i+1,:])#'----->',denominator,' = ',fastEnergy[index[0],i,index[2]], '*', cosValue[:,i,:]
+
+#                print fastEnergy[:,i:i+1,:],'-----------' ,cosValue[:,i:i+1,:],fastEnergy[:,i:i+1,:].count(),numerator/denominator
+#            numerator = numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days)
+#            denominator = 124560.*numpy.sum(cosValue)   #   124560  the  number of unmasked cells
+#            finalIndex = numerator/denominator
+#            finalIndex.append(numpy.sum(localIndex))
+#            totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
+            totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
             print fileName[5:12], '-----> DONE!!!'
 #            print 'Average index (Wm-2)----->', finalIndex
+        print totalFinalIndex
         print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
         
         if save == True:
@@ -362,13 +378,13 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
     x, y = map1(lons,lats)
     myData = data.reshape((latitude123.size,longitude123.size))
     myData = numpy.flipud(myData)   #   This line is important!!!
-    cmap = plt.get_cmap('seismic')
+    cmap = plt.get_cmap('RdBu_r')
     if plotType == 'mesh':
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
         cb = map1.colorbar(colormesh, location='bottom', pad="5%")
     elif plotType == 'contourf':
         v = numpy.arange(-200, 201, 20)
-        cmap = plt.cm.get_cmap('seismic')
+        cmap = plt.cm.get_cmap('RdBu_r')
         bounds = v
         norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
         colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm,extend = 'both')
