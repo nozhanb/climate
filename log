@@ -135,3 +135,11 @@ overland area. Still needs to be fixed.
 November 24, 2017
 
 The function "landEnergyReader" was fixed.
+
+November 27, 2017
+
+A few minor changes was made to the energyice.py. Two more scripts were written 
+"differenceMap.py" and "trendPersistence.py". The former makes an anomoly plot of 
+latent energy in low and high of sea ice over Barents Kara sea and the latter makes
+an anomoly plot of different months of the same years (low and high ice years).
+ 

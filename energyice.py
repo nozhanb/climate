@@ -79,22 +79,24 @@ class EnergyIce:
 
 
 
-    def sicReader(self,save = True, outputName = None):
+    def sicReader(self,save = True, outputName = None, landMask = False):
         ''' This function reads in a .nc file and returns a dictionary of differnt indices for indicated months.'''
         self.output_dic = collections.OrderedDict() #   Notice that it MUST be an Ordered Dictionary!!!
         totalIceFraction = []
+        path = './sic/'
         for fileName in self.filex:
             for monthNo in self.month:
-                printName = fileName+'_'+str(monthNo)+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'
-                loaded_file = netCDF4.Dataset(fileName)     #   Notice the following arrays are MASKED arrays!!!
+                printName = fileName+'_'+str(monthNo)
+                loaded_file = netCDF4.Dataset(path+fileName)     #   Notice the following arrays are MASKED arrays!!!
                 fastLat = numpy.ma.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
                 fastLon = numpy.ma.array(loaded_file.variables['g0_lon_2'][self.finalLon[0]:self.finalLon[-1]+1])
                 cosValue = numpy.cos(fastLat*(3.14/180.))
                 cosValue = cosValue.reshape(self.finalLat.size, 1)
                 maskedIceFraction = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])*cosValue
                 #   There are some cells in which the value of ice fraction is e+29 (i.e. regions covered with land) so we set them to zero.
-#                landCoor = numpy.ma.masked_less(maskedIceFraction,1.5).filled(0.)
-#                print 'This is the dimension of the landcoor: ', landCoor.shape               
+                if landMask == True:
+                    landMa = numpy.ma.masked_less(maskedIceFraction,2.).filled(0.)
+
                 iceFractionMaskedWithZero = numpy.ma.masked_greater(maskedIceFraction,10).filled(0.)
                 numerator = numpy.sum(numpy.sum(iceFractionMaskedWithZero,0))
                 denominator = fastLon.size*numpy.sum(numpy.sum(cosValue,0))
@@ -123,12 +125,19 @@ class EnergyIce:
                         nameToWrite = 'iceFraction'
                     elif outputName is not None:
                         nameToWrite = outputName
-                    ff = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(monthNo)][0:3]+'_'\
+                    
+                    if landMask == True:
+                        days = calendar.monthrange(int(fileName[4:8]),int(monthNo))[1]
+                        ff2 = open('landMask'+str(days)+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
+                    latSec,'w')
+                        landMa.tofile(ff2,",")
+                        ff2.close()
+                    ff1 = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(monthNo)][0:3]+'_'\
                     +str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
                     latSec,'w')
-                    ff.write(json.dumps(totalIceFraction))
-                    ff.close()
-        return numpy.array(totalIceFraction), landCoor
+                    ff1.write(json.dumps(totalIceFraction))
+                    ff1.close()
+        return numpy.array(totalIceFraction)
 
 
 
@@ -141,9 +150,9 @@ class EnergyIce:
         self.energyIndexDictionary = collections.OrderedDict()
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         totalFinalIndex = numpy.array([])
-
+        path = './dmDivQ_NH/'
         for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(fileName)
+            loaded_file = netCDF4.Dataset(path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
             cosValue = numpy.cos(fastLat*(3.14/180.))
@@ -193,17 +202,19 @@ class EnergyIce:
 
 
 
-    def landEnergyReader(self,save = True, outputName = None):
+    def landEnergyReader(self,fName, save = True, outputName = None):
         self.averagePerYearDictionary = collections.OrderedDict()   #   This dictionary collects the average energy during each month for each montha for each year for each cell.
         self.energyIndexDictionary = collections.OrderedDict()
         totalFinalIndex = numpy.array([])
+        day1 = fName[8:10]
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
-        europeCoor = numpy.fromfile('europeCoordinate',float,-1,",")
-        europeCoor = europeCoor.reshape(30,81,101)   #   The number of days in this line does not count for LEAP years.
-        maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(europeCoor, 1))
+        landCoor = numpy.fromfile(fName,float,-1,",")
+        landCoor = landCoor.reshape(1,81,101).repeat(int(day1),0)   #   The number of days in this line does not count for LEAP years.
+        maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
+        path = './dmDivQ_NH/'
         
         for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(fileName)
+            loaded_file = netCDF4.Dataset(path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
             fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
@@ -258,11 +269,11 @@ class EnergyIce:
                 nameToWrite2 = self.fileContent+'Average'
                 
             if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec+'land','w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec+'land','w')
+                ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
             elif len(self.filex) > 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
 
             ff1.write(json.dumps(totalFinalIndex.tolist()))
             ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
