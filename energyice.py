@@ -66,16 +66,18 @@ class EnergyIce:
             for years in self.yearRange:
                     self.filex.append('SIC.'+str(years)+'.nc')
         elif fileContent == 'DivQ':
+            self.path = './dmDivQ_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
         elif fileContent == 'DivD':
+            self.path = './dmDivD_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivD.'+str(years)+'.'+str(months)+'.nc')
-            self.loaded_file = netCDF4.Dataset('DivD.'+str(years)+'.'+str(months)+'.nc')
-            self.fastLat = numpy.array(self.loaded_file.variables['lat_NH'][:])
-            self.fastLon = numpy.array(self.loaded_file.variables['lon'][:])
+#            self.loaded_file = netCDF4.Dataset('DivD.'+str(years)+'.'+str(months)+'.nc')
+#            self.fastLat = numpy.array(self.loaded_file.variables['lat_NH'][:])
+#            self.fastLon = numpy.array(self.loaded_file.variables['lon'][:])
 
 
 
@@ -146,13 +148,11 @@ class EnergyIce:
 ##########################
         
     def energyReader(self,save = True, outputName = None):
-        self.averagePerYearDictionary = collections.OrderedDict()   #   This dictionary collects the average energy during each month for each montha for each year for each cell.
-        self.energyIndexDictionary = collections.OrderedDict()
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         totalFinalIndex = numpy.array([])
-        path = './dmDivQ_NH/'
+
         for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(path+fileName)
+            loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
             cosValue = numpy.cos(fastLat*(3.14/180.))
@@ -203,18 +203,15 @@ class EnergyIce:
 
 
     def landEnergyReader(self,fName, save = True, outputName = None):
-        self.averagePerYearDictionary = collections.OrderedDict()   #   This dictionary collects the average energy during each month for each montha for each year for each cell.
-        self.energyIndexDictionary = collections.OrderedDict()
         totalFinalIndex = numpy.array([])
         day1 = fName[8:10]
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         landCoor = numpy.fromfile(fName,float,-1,",")
         landCoor = landCoor.reshape(1,81,101).repeat(int(day1),0)   #   The number of days in this line does not count for LEAP years.
         maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
-        path = './dmDivQ_NH/'
         
         for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(path+fileName)
+            loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
             fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
@@ -299,72 +296,24 @@ class EnergyIce:
         
         
 
-    def smoothing(self, inputData,longitude,latitude,smoothingLength = 1):
-        "This function applies a smoothing technique to a given region and makes the features of that region more clear."
-        #   A square is drwan around each point. To do so, we need to introduce 9 data points (including the central).
-        #   This function smooths out longitudinally. It starts from the starting point and smooths out along the starting 
-        #   latitude. Once it reaches the last longitude (indicated by longitude in endingPoint) it moves to the upper 
-        #   latitude and the process is repeated until it reached the very last point (endingPoint).
-        #   To make things easier it is best to think of the startingPoint and endingPoint as the lower-left corner and 
-        #   the upper-right corner of the smoothing frame/region.
-        #   smoothingLength: 1 means the immediate neighbours (i.e. half a degree distance between the central point and 
-        #   the neighbouring points). If the user is intrested in one degree distance then number 2 must be placed. 
-        #   Generally, the following formula must be followed to set the desired distance/radius around the central point
-        #   desired distance (in degree) = smoothingLength*0.5
-        
-        '''
-        self.sLength = smoothingLength
-        self.startLat = self.totalLat[0]
-        self.startLon = self.totalLon[0]
-        self.endLat = self.totalLat[-1]
-        self.endLon = self.totalLon[-1]
-
-        # The coordinate of the neighbouring points:
-        self.p0 = (self.startLat-self.sLength,self.startLon-self.sLength)
-        self.p1 = (self.startLat-self.sLength,self.startLon)
-        self.p2 = (self.startLat-self.sLength,self.startLon+self.sLength)
-        self.p3 = (self.startLat,self.startLon-self.sLength)
-        self.pCenter = (self.startLat,self.startLon)     #   This is the central/original point!!!
-        self.p5 = (self.startLat,self.startLon+self.sLength)
-        self.p6 = (self.startLat+self.sLength,self.startLon-self.sLength)
-        self.p7 = (self.startLat+self.sLength,self.startLon)
-        self.p8 = (self.startLat+self.sLength,self.startLon+self.sLength)
-
-        '''
-        
-        for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(fileName)
-            days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
-            fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,:,:])
-            fastLat = numpy.array(loaded_file.variables['lon'][:])
-            fastLon = numpy.array(loaded_file.variables['lat_NH'][:])
-            cosValue = numpy.cos(fastLat*(3.14/180.))
-            cosValue = cosValue.reshape(1,fastLat.size,1)
-#        newLon = numpy.arange(0,720)
-#        newLon = numpy.append(newLon,0)
-#        newLon = numpy.insert(newLon,0,719,0)
-        avEnergy = numpy.sum(fastEnergy,0)/days
-        cosValue = numpy.cos(fastLat*3.14/180.).reshape(fastLat.size,1)
-        cosEnergy = avEnergy*cosValue
-        
-        for lati in self.finalLat:
-                upArea = cosEnergy[lati,:]
-                downArea = cosEnergy[lati + 1,:]
-                twoArea = (upArea + downArea)/2.
-                for loni in self.finalLon:
-                    finalArea = numpy.sum(twoArea[loni - 1:loni + 1])/2.
-                
-        '''     
-           0.5     0.5
-        6-------7-------8
-        |       |       |
-        |       |       |
-        3-------C-------5
-        |       |       |
-        |       |       |
-        0-------1-------2
-
-        '''
+def smoothing(inArray, length = None, mode = None):
+    "This function applies a smoothing technique to a given region and makes the features of that region more clear."
+    if length == None:
+        sLength = 3
+    else:
+        sLength = length
+    if mode == None:
+        endMode = 'valid'
+    else:
+        endMode = mode
+    fastLat = numpy.arange(75,34.5,-0.5)
+    cosValue = numpy.cos(fastLat*(3.14/180.))
+    cosValue = cosValue.reshape(fastLat.size,1)
+    numerator = numpy.convolve((inArray*cosValue).reshape(inArray.size),numpy.ones((sLength,))/float(sLength),mode = endMode)
+    print 'This is numerator shape: --->', numerator.shape
+    denominator = numerator.reshape(inArray.shape)/cosValue
+    print 'This is denominator shape: --->', denominator.shape
+    return denominator
 
         
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
@@ -373,7 +322,7 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
     lat1, lat2 = latitude
     latitude123 = numpy.arange(lat1,lat2+0.5,0.5)
     lon1, lon2 = longitude
-    longitude123= numpy.arange(lon1, lon2+0.5,0.5)
+    longitude123= numpy.arange(lon1,lon2+0.5,0.5)
 
     fig1,ax1 = plt.subplots(1,1,figsize=(13,13))
 

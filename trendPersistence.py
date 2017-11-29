@@ -55,18 +55,18 @@ lowMinusAve  = numpy.array(lowAv)  - numpy.array(aveAv)
 
 fig, ax = plt.subplots(1,1,figsize = (13,6))
 ax.plot(xdata, highMinusAve, '--or', linewidth = 3., label = 'high')
-ax.plot(xdata, lowMinusAve, '-b', linewidth = 3., label = 'low')
-ax.plot(xdata, numpy.array(aveAv), '-g', linewidth = 3., label = 'ave')
+ax.plot(xdata, lowMinusAve, '-ob', linewidth = 3., label = 'low')
+#ax.plot(xdata, numpy.array(aveAv), '-og', linewidth = 3., label = 'ave')
 
 plt.xlabel('Month')
-plt.ylabel('Latent energy anomolies (Wm-2)')
+plt.ylabel('Latent energy (Wm-2)')
 plt.xticks(xdata,month)
-plt.title("Latent energy anomolies")
+plt.title("Latent energy anomolies of the years with highest and lowest SIC")
 plt.grid(True)
 plt.legend(loc=4)
 #plt.xlim(1979,2014)
 
-#plt.savefig('/home/nba035/plot/latentIndexFitSepEurope79_14.eps', format = 'eps')
+#plt.savefig('/home/nba035/plot/latentEnergyAnomalies.eps', format = 'eps')
 plt.show()
 
 

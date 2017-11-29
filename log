@@ -143,3 +143,7 @@ A few minor changes was made to the energyice.py. Two more scripts were written
 latent energy in low and high of sea ice over Barents Kara sea and the latter makes
 an anomoly plot of different months of the same years (low and high ice years).
  
+
+November 29, 2017
+
+I made some changes to both differenceMap.py and trendPersisitence.py.
