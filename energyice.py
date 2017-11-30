@@ -48,6 +48,7 @@ class EnergyIce:
         self.fileContent = fileContent
         self.filex = []
         self.year1, self.year2 = year[0],year[1]
+        self.year = year
         totalLon = numpy.arange(-180,180,0.5)
         totalLat = numpy.arange(90,29.5,-0.5)
         lonInitialIndex = numpy.where(totalLon==float(self.lon5[0]))
@@ -228,19 +229,8 @@ class EnergyIce:
                     localIndex = numpy.append(localIndex,0.)
                 elif denominator != 0.:
                     localIndex = numpy.append(localIndex,numerator/denominator)
-#                print i,'----->',fastLat[i],fastEnergy[0:1,i:i+1,0:1], denominator, localIndex
-#                for index in numpy.ndindex(fastEnergy[0:1,i:i+1,0:1].shape):
-#                    print index,'--->',i,fastLat[i],fastLon[index[2]] ,numpy.count_nonzero(fastEnergy[:,i:i+1,:])#'----->',denominator,' = ',fastEnergy[index[0],i,index[2]], '*', cosValue[:,i,:]
-
-#                print fastEnergy[:,i:i+1,:],'-----------' ,cosValue[:,i:i+1,:],fastEnergy[:,i:i+1,:].count(),numerator/denominator
-#            numerator = numpy.sum(numpy.sum(fastEnergy*cosValue,0)/days)
-#            denominator = 124560.*numpy.sum(cosValue)   #   124560  the  number of unmasked cells
-#            finalIndex = numerator/denominator
-#            finalIndex.append(numpy.sum(localIndex))
-#            totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
             totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
             print fileName[5:12], '-----> DONE!!!'
-#            print 'Average index (Wm-2)----->', finalIndex
         print totalFinalIndex
         print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
         
@@ -279,6 +269,96 @@ class EnergyIce:
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
 
+    def montecarlo(self, maskName, content, counts = 5, save = True, outputName = None):
+        #   years has to be a list of years in integer format.
+        import random
+        yArray = numpy.arange(1979,2015)
+        totalFinalIndex = numpy.array([])
+        day1 = maskName[8:10]
+        EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        landCoor = numpy.fromfile(maskName,float,-1,",")
+        landCoor = landCoor.reshape(1,81,101).repeat(int(day1),0)   #   The number of days in this line does not count for LEAP years.
+        maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
+#        fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
+#        fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
+        fastLat = numpy.arange(75,34.5,-0.5)
+        cosValue = numpy.cos(fastLat*(3.14/180.))
+        cosValue = cosValue.reshape(fastLat.size,1)
+        years = random.sample(yArray,len(self.year))
+        if content == 'DivQ':
+            energy = 'DivQ.'
+        elif content == 'DivD':
+            energy = 'DivD.'
+        for fileName in self.filex:
+            loaded_file = netCDF4.Dataset(self.path+fileName)
+            days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
+            fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
+            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
+        for i in range(0,counts):
+            mcFiles = []           
+            years = random.sample(yArray,len(self.filex))
+            mcEnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            for ycount in years:
+                mcFiles.append(energy+str(years)+'.'+str(self.month)+'.nc')
+            for j in mcFiles:
+                loaded_file = netCDF4.Dataset(self.path+fileName)
+                mcFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                mcFastEnergy = numpy.ma.masked_where(maskOfEurope,mcFastEnergy).filled(0.)
+                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/days            
+            cellDensity = cellDensity + numpy.less(numpy.absolute(EnergyAverage),numpy.absolute(mcEnergyAverage)).astype(float)
+            print "Monte Carlo cycle: ", i ,'----->', years
+        return cellDensity/counts
+#==============================================================================
+#             
+#             localIndex = numpy.array([])
+#             for i in range(self.finalLat.size):
+#                 numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
+#                 denominator = numpy.count_nonzero(fastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
+#                 if denominator == 0.:
+#                     localIndex = numpy.append(localIndex,0.)
+#                 elif denominator != 0.:
+#                     localIndex = numpy.append(localIndex,numerator/denominator)
+#             totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
+#             print fileName[5:12], '-----> DONE!!!'
+#         print totalFinalIndex
+#         print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
+#         
+#         if save == True:
+#             if self.lat5[0] < 0.0:
+#                 latFir = 'S'
+#             elif self.lat5[0] >= 0.0:
+#                 latFir = 'N'
+#             if self.lat5[1] < 0.0:
+#                 latSec = 'S'
+#             elif self.lat5[1] >= 0.0:
+#                 latSec = 'N'
+#             if self.lon5[0] < 0.0:
+#                 lonFir = 'W'
+#             elif self.lon5[0] >= 0.0:
+#                 lonFir = 'E'
+#             if self.lon5[1] < 0.0:
+#                 lonSec = 'W'
+#             elif self.lon5[1] >= 0.0:
+#                 lonSec = 'E'
+#             if outputName == None:
+#                 nameToWrite1 = self.fileContent+'Index'
+#                 nameToWrite2 = self.fileContent+'Average'
+#                 
+#             if len(self.filex) == 1:
+#                 ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+#                 ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+#             elif len(self.filex) > 1:
+#                 ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+#                 ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+# 
+#             ff1.write(json.dumps(totalFinalIndex.tolist()))
+#             ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
+#             ff1.close()
+#             ff2.close()
+#==============================================================================
+        return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
 
     def fitting(self, xData, yData, fitFunction = None, **params):
@@ -294,7 +374,7 @@ class EnergyIce:
             return defined(xData,*popt)
         
         
-        
+    
 
 def smoothing(inArray, length = None, mode = None):
     "This function applies a smoothing technique to a given region and makes the features of that region more clear."
@@ -306,15 +386,19 @@ def smoothing(inArray, length = None, mode = None):
         endMode = 'valid'
     else:
         endMode = mode
+    filt = numpy.zeros((81,101))
     fastLat = numpy.arange(75,34.5,-0.5)
     cosValue = numpy.cos(fastLat*(3.14/180.))
     cosValue = cosValue.reshape(fastLat.size,1)
     numerator = numpy.convolve((inArray*cosValue).reshape(inArray.size),numpy.ones((sLength,))/float(sLength),mode = endMode)
-    print 'This is numerator shape: --->', numerator.shape
     denominator = numerator.reshape(inArray.shape)/cosValue
-    print 'This is denominator shape: --->', denominator.shape
+    for ilat in fastLat:
+        lonStep = int(round(min([720.,14.]*numpy.cos(ilat*(3.14/180.)))))
+        filt = numpy.append(filt,)
     return denominator
 
+        
+        
         
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
      plotType = 'contourf', store = False, name = None):

@@ -147,3 +147,10 @@ an anomoly plot of different months of the same years (low and high ice years).
 November 29, 2017
 
 I made some changes to both differenceMap.py and trendPersisitence.py.
+
+
+November 30, 2017
+
+I added the function "montecarlo" to enregyice.py. It runs a statistical test
+over the data given to it and as many times as the user wants to. Still needs 
+to be verified and make sure things are working properly. 
