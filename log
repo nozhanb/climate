@@ -154,3 +154,9 @@ November 30, 2017
 I added the function "montecarlo" to enregyice.py. It runs a statistical test
 over the data given to it and as many times as the user wants to. Still needs 
 to be verified and make sure things are working properly. 
+
+December 01, 2017
+
+I fixed the montecarlo function. (it had some bugs in it.) Also I added two 
+more lines to the europeMap function so it can plot the contour lines with 
+values next to them.

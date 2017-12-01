@@ -8,7 +8,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 #import numpy.ma as ma  #   It is used to work with MASKED arrays. See numpy manual for more details on masked arrays.
-#numpy.set_printoptions(threshold=numpy.nan) #   if activated it prints out the numpy arrays in their entierty 
+numpy.set_printoptions(threshold=numpy.nan) #   if activated it prints out the numpy arrays in their entierty 
                                                 #   regrdless of how big they are.
 
 #ice = energyice.EnergyIce('SIC',(2010,2014),['01','02','03'],(-10,40),(35,75))
@@ -269,7 +269,7 @@ class EnergyIce:
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
 
-    def montecarlo(self, maskName, content, counts = 5, save = True, outputName = None):
+    def montecarlo(self, maskName = 'landMask30_10W40E_35N75N', content = 'DivQ', counts = 5, save = True, outputName = None):
         #   years has to be a list of years in integer format.
         import random
         yArray = numpy.arange(1979,2015)
@@ -285,11 +285,6 @@ class EnergyIce:
         fastLat = numpy.arange(75,34.5,-0.5)
         cosValue = numpy.cos(fastLat*(3.14/180.))
         cosValue = cosValue.reshape(fastLat.size,1)
-        years = random.sample(yArray,len(self.year))
-        if content == 'DivQ':
-            energy = 'DivQ.'
-        elif content == 'DivD':
-            energy = 'DivD.'
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
@@ -297,19 +292,21 @@ class EnergyIce:
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
         for i in range(0,counts):
+            print "Monte Carlo cycle: ", i
             mcFiles = []           
             years = random.sample(yArray,len(self.filex))
             mcEnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for ycount in years:
-                mcFiles.append(energy+str(years)+'.'+str(self.month)+'.nc')
+                mcFiles.append(content+'.'+str(ycount)+'.'+str(self.month[0])+'.nc')
             for j in mcFiles:
-                loaded_file = netCDF4.Dataset(self.path+fileName)
+                loaded_file = netCDF4.Dataset(self.path+j)
                 mcFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                 mcFastEnergy = numpy.ma.masked_where(maskOfEurope,mcFastEnergy).filled(0.)
-                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/days            
+                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/days
+#                print "This is the years ----->", self.path+j
             cellDensity = cellDensity + numpy.less(numpy.absolute(EnergyAverage),numpy.absolute(mcEnergyAverage)).astype(float)
-            print "Monte Carlo cycle: ", i ,'----->', years
-        return cellDensity/counts
+#            print cellDensity
+        return cellDensity/counts, EnergyAverage
 #==============================================================================
 #             
 #             localIndex = numpy.array([])
@@ -427,11 +424,13 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
         cb = map1.colorbar(colormesh, location='bottom', pad="5%")
     elif plotType == 'contourf':
-        v = numpy.arange(-200, 201, 20)
+        v = numpy.arange(0, 1.05, 0.05)
         cmap = plt.cm.get_cmap('RdBu_r')
         bounds = v
         norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
         colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm,extend = 'both')
+        cset = map1.contour(x, y, myData,levels=[0.68,0.95],colors = ['k','c'], linewidths=[2.,2.],extent='both')
+        plt.clabel(cset, fmt='%1.2f',inline=1, fontsize=10)
         cb = map1.colorbar(colorf, location='bottom', pad="5%")
         cb.cmap.set_under('m')
         cb.cmap.set_over('g')
