@@ -373,26 +373,21 @@ class EnergyIce:
         
     
 
-def smoothing(inArray, length = None, mode = None):
-    "This function applies a smoothing technique to a given region and makes the features of that region more clear."
-    if length == None:
-        sLength = 3
-    else:
-        sLength = length
-    if mode == None:
-        endMode = 'valid'
-    else:
-        endMode = mode
+def smoothing(inArray, length = 7, mode = 'constant'):
+    """This function applies a smoothing technique to a given region."""
+    from scipy.ndimage import uniform_filter
     filt = numpy.zeros((81,101))
+#    fastLat = numpy.arange(90,59.5,-0.5)
     fastLat = numpy.arange(75,34.5,-0.5)
     cosValue = numpy.cos(fastLat*(3.14/180.))
     cosValue = cosValue.reshape(fastLat.size,1)
-    numerator = numpy.convolve((inArray*cosValue).reshape(inArray.size),numpy.ones((sLength,))/float(sLength),mode = endMode)
+    numerator = uniform_filter((inArray*cosValue),size=length,origin=0,mode = mode)
     denominator = numerator.reshape(inArray.shape)/cosValue
-    for ilat in fastLat:
-        lonStep = int(round(min([720.,14.]*numpy.cos(ilat*(3.14/180.)))))
-        filt = numpy.append(filt,)
-    return denominator
+    print numerator.shape, denominator.shape
+    for ilat in range(len(fastLat)):
+        lonStep = int(round(min([720.,14.]/numpy.cos(fastLat[ilat]*(3.14/180.)))))
+        filt[ilat:ilat+1,:] = uniform_filter(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+    return filt
 
         
         
@@ -414,7 +409,7 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
     if sphereProjection == True:
         map1 = Basemap(projection='npstere', boundinglat=60, llcrnrlon=lon1,llcrnrlat=lat1, \
         urcrnrlon=lon2, urcrnrlat=lat2, lon_0 = 270, round=True)
-        
+    print "Thi sis the shapes: ----->", data.shape, latitude123.shape, longitude123.shape
     lons,lats = numpy.meshgrid(longitude123,latitude123)
     x, y = map1(lons,lats)
     myData = data.reshape((latitude123.size,longitude123.size))
@@ -424,7 +419,8 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
         cb = map1.colorbar(colormesh, location='bottom', pad="5%")
     elif plotType == 'contourf':
-        v = numpy.arange(0, 1.05, 0.05)
+#        v = numpy.arange(0, 1.05, 0.05)
+        v = numpy.arange(-200, 201, 20)
         cmap = plt.cm.get_cmap('RdBu_r')
         bounds = v
         norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
@@ -436,8 +432,8 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         cb.cmap.set_over('g')
         cb.set_label(r'Latent energy divergence (Wm-2)')
 
-    map1.drawparallels(numpy.arange(lat1,lat2 + 1,10),labels=[1,0,0,0], linewidth=0.0)
-    map1.drawmeridians(numpy.arange(lon1,lon2 + 1,10),labels=[0,0,0,1], linewidth=0.0)
+#    map1.drawparallels(numpy.arange(lat1,lat2 + 1,10),labels=[1,0,0,0], linewidth=0.0)
+#    map1.drawmeridians(numpy.arange(lon1,lon2 + 1,10),labels=[0,0,0,1], linewidth=0.0)
 
     if sphereProjection == True:
         map1.drawmeridians([-150,-120,-90,-60,-30,0,30,60,90,120,150,180], labels=[1,1,1,1], linewidth=1.0)

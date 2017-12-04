@@ -160,3 +160,9 @@ December 01, 2017
 I fixed the montecarlo function. (it had some bugs in it.) Also I added two 
 more lines to the europeMap function so it can plot the contour lines with 
 values next to them.
+
+December 04, 2017
+
+I added the smoothing function to the energyice.py. Still needs to be discussed
+with Rune as to if I can use the scipy.ndimage.uniform_filter method or I should
+use his technique with varing step lengths for each latitude.
