@@ -166,3 +166,10 @@ December 04, 2017
 I added the smoothing function to the energyice.py. Still needs to be discussed
 with Rune as to if I can use the scipy.ndimage.uniform_filter method or I should
 use his technique with varing step lengths for each latitude.
+
+December 11, 2017
+
+I made some changes to the europeMap function in the energyice file. Also, some 
+changes to the differenceMa.py (today) and trendPersistence.py (a few days ago).
+Now using the differenceMap.py we can generagte difference maps with montecarlo
+contours overplotted on top of them.

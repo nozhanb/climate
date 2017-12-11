@@ -49,6 +49,9 @@ class EnergyIce:
         self.filex = []
         self.year1, self.year2 = year[0],year[1]
         self.year = year
+        self.days = calendar.monthrange(int(self.year[0]),int(self.month[0]))[1]
+        self.monthName = calendar.month_name[int(self.month[0])][0:3]    # this line creates the output month to be used in output file's name.
+
         totalLon = numpy.arange(-180,180,0.5)
         totalLat = numpy.arange(90,29.5,-0.5)
         lonInitialIndex = numpy.where(totalLon==float(self.lon5[0]))
@@ -57,6 +60,7 @@ class EnergyIce:
         latEndIndex = numpy.where(totalLat==float(self.lat5[1]))
         self.finalLon = numpy.arange(lonInitialIndex[0][0], lonEndIndex[0][0] + 1)
         self.finalLat = numpy.arange(latEndIndex[0][0], latInitialIndex[0][0] + 1)  #   Notice that latitude is ordered differently.
+                
         
         if allYears == True:
             self.yearRange = range(self.year1, self.year2+1)        
@@ -189,11 +193,11 @@ class EnergyIce:
                 nameToWrite2 = self.fileContent+'Average'
                 
             if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
             elif len(self.filex) > 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
 
             ff1.write(json.dumps(totalFinalIndex.tolist()))
             ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
@@ -203,7 +207,7 @@ class EnergyIce:
 
 
 
-    def landEnergyReader(self,fName, save = True, outputName = None):
+    def landEnergyReader(self, fName, save = True, highLowAndMonth = None, outputName = None):
         totalFinalIndex = numpy.array([])
         day1 = fName[8:10]
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
@@ -254,13 +258,18 @@ class EnergyIce:
             if outputName == None:
                 nameToWrite1 = self.fileContent+'Index'
                 nameToWrite2 = self.fileContent+'Average'
+            
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
                 
             if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
             elif len(self.filex) > 1:
-                ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
 
             ff1.write(json.dumps(totalFinalIndex.tolist()))
             ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
@@ -269,12 +278,15 @@ class EnergyIce:
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
 
-    def montecarlo(self, maskName = 'landMask30_10W40E_35N75N', content = 'DivQ', counts = 5, save = True, outputName = None):
+    def montecarlo(self, maskName = 'landMask30_10W40E_35N75N', content = 'DivQ', \
+                    counts = 100, save = True, highLowAndMonth = None, outputName = None):
         #   years has to be a list of years in integer format.
+        #   The self.days is correct for now but in the future if you are planning to change the code watch out self.days!!!
         import random
         yArray = numpy.arange(1979,2015)
         totalFinalIndex = numpy.array([])
         day1 = maskName[8:10]
+        totalAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
         landCoor = numpy.fromfile(maskName,float,-1,",")
@@ -285,12 +297,21 @@ class EnergyIce:
         fastLat = numpy.arange(75,34.5,-0.5)
         cosValue = numpy.cos(fastLat*(3.14/180.))
         cosValue = cosValue.reshape(fastLat.size,1)
+        totalFiles = []        
+        for totalYear in numpy.arange(1979,2015):
+                totalFiles.append(content+'.'+str(totalYear)+'.'+str(self.month[0])+'.nc')
+        for totalName in totalFiles:
+            loaded_file = netCDF4.Dataset(self.path+totalName)
+            totalFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            totalFastEnergy = numpy.ma.masked_where(maskOfEurope,totalFastEnergy).filled(0.)
+            totalAverage = totalAverage + numpy.sum(totalFastEnergy,0)/self.days
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
-            days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
-            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
+            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/self.days
+        
+        subtractedSpecific = EnergyAverage - totalAverage
         for i in range(0,counts):
             print "Monte Carlo cycle: ", i
             mcFiles = []           
@@ -302,60 +323,48 @@ class EnergyIce:
                 loaded_file = netCDF4.Dataset(self.path+j)
                 mcFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                 mcFastEnergy = numpy.ma.masked_where(maskOfEurope,mcFastEnergy).filled(0.)
-                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/days
-#                print "This is the years ----->", self.path+j
-            cellDensity = cellDensity + numpy.less(numpy.absolute(EnergyAverage),numpy.absolute(mcEnergyAverage)).astype(float)
-#            print cellDensity
-        return cellDensity/counts, EnergyAverage
-#==============================================================================
-#             
-#             localIndex = numpy.array([])
-#             for i in range(self.finalLat.size):
-#                 numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
-#                 denominator = numpy.count_nonzero(fastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
-#                 if denominator == 0.:
-#                     localIndex = numpy.append(localIndex,0.)
-#                 elif denominator != 0.:
-#                     localIndex = numpy.append(localIndex,numerator/denominator)
-#             totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
-#             print fileName[5:12], '-----> DONE!!!'
-#         print totalFinalIndex
-#         print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
-#         
-#         if save == True:
-#             if self.lat5[0] < 0.0:
-#                 latFir = 'S'
-#             elif self.lat5[0] >= 0.0:
-#                 latFir = 'N'
-#             if self.lat5[1] < 0.0:
-#                 latSec = 'S'
-#             elif self.lat5[1] >= 0.0:
-#                 latSec = 'N'
-#             if self.lon5[0] < 0.0:
-#                 lonFir = 'W'
-#             elif self.lon5[0] >= 0.0:
-#                 lonFir = 'E'
-#             if self.lon5[1] < 0.0:
-#                 lonSec = 'W'
-#             elif self.lon5[1] >= 0.0:
-#                 lonSec = 'E'
-#             if outputName == None:
-#                 nameToWrite1 = self.fileContent+'Index'
-#                 nameToWrite2 = self.fileContent+'Average'
-#                 
-#             if len(self.filex) == 1:
-#                 ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-#                 ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-#             elif len(self.filex) > 1:
-#                 ff1 = open(nameToWrite1+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-#                 ff2 = open(nameToWrite2+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(self.month[0])][0:3]+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-# 
-#             ff1.write(json.dumps(totalFinalIndex.tolist()))
-#             ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
-#             ff1.close()
-#             ff2.close()
-#==============================================================================
-        return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
+                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/self.days
+            subtractedMc = mcEnergyAverage - totalAverage
+            cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedSpecific),numpy.absolute(subtractedMc)).astype(float)
+        finalDensity = cellDensity/counts
+
+        if save == True:
+            if self.lat5[0] < 0.0:
+                latFir = 'S'
+            elif self.lat5[0] >= 0.0:
+                latFir = 'N'
+            if self.lat5[1] < 0.0:
+                latSec = 'S'
+            elif self.lat5[1] >= 0.0:
+                latSec = 'N'
+            if self.lon5[0] < 0.0:
+                lonFir = 'W'
+            elif self.lon5[0] >= 0.0:
+                lonFir = 'E'
+            if self.lon5[1] < 0.0:
+                lonSec = 'W'
+            elif self.lon5[1] >= 0.0:
+                lonSec = 'E'
+            if outputName == None:
+                nameToWrite1 = self.fileContent+'Index'
+                nameToWrite2 = self.fileContent+'Montecarlo'
+                
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
+                
+            if len(self.filex) == 1:
+#                ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+            elif len(self.filex) > 1:
+#                ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+
+            finalDensity.tofile(ff2,sep=",")
+#            ff1.close()
+            ff2.close()
+        return finalDensity
 
 
     def fitting(self, xData, yData, fitFunction = None, **params):
@@ -373,27 +382,27 @@ class EnergyIce:
         
     
 
-def smoothing(inArray, length = 7, mode = 'constant'):
+def smoothing(inArray, length = 7, mode = 'wrap'):
     """This function applies a smoothing technique to a given region."""
     from scipy.ndimage import uniform_filter
-    filt = numpy.zeros((81,101))
-#    fastLat = numpy.arange(90,59.5,-0.5)
-    fastLat = numpy.arange(75,34.5,-0.5)
+    filt = numpy.zeros((61,720))                          #((81,101))
+    fastLat = numpy.arange(89.5,29.5,-0.5)          #(90,59.5,-0.5)
+#    fastLat = numpy.arange(75,34.5,-0.5)
+    print '----->', inArray.shape, fastLat.shape
     cosValue = numpy.cos(fastLat*(3.14/180.))
     cosValue = cosValue.reshape(fastLat.size,1)
     numerator = uniform_filter((inArray*cosValue),size=length,origin=0,mode = mode)
     denominator = numerator.reshape(inArray.shape)/cosValue
-    print numerator.shape, denominator.shape
     for ilat in range(len(fastLat)):
         lonStep = int(round(min([720.,14.]/numpy.cos(fastLat[ilat]*(3.14/180.)))))
         filt[ilat:ilat+1,:] = uniform_filter(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
-    return filt
+    return numerator
 
         
         
         
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
-     plotType = 'contourf', store = False, name = None):
+     plotType = 'contourf', montecarlo = False, store = False, name = None):
 
     lat1, lat2 = latitude
     latitude123 = numpy.arange(lat1,lat2+0.5,0.5)
@@ -419,32 +428,43 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         colormesh = map1.pcolormesh(x,y,myData,cmap = cmap)
         cb = map1.colorbar(colormesh, location='bottom', pad="5%")
     elif plotType == 'contourf':
-#        v = numpy.arange(0, 1.05, 0.05)
-        v = numpy.arange(-200, 201, 20)
-        cmap = plt.cm.get_cmap('RdBu_r')
-        bounds = v
-        norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
-        colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm,extend = 'both')
-        cset = map1.contour(x, y, myData,levels=[0.68,0.95],colors = ['k','c'], linewidths=[2.,2.],extent='both')
-        plt.clabel(cset, fmt='%1.2f',inline=1, fontsize=10)
-        cb = map1.colorbar(colorf, location='bottom', pad="5%")
-        cb.cmap.set_under('m')
-        cb.cmap.set_over('g')
-        cb.set_label(r'Latent energy divergence (Wm-2)')
-
-#    map1.drawparallels(numpy.arange(lat1,lat2 + 1,10),labels=[1,0,0,0], linewidth=0.0)
-#    map1.drawmeridians(numpy.arange(lon1,lon2 + 1,10),labels=[0,0,0,1], linewidth=0.0)
+        if montecarlo == True:
+            v = numpy.arange(0, 1.05, 0.05)
+            cmap = plt.cm.get_cmap('Blues')
+            bounds = v
+            norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+            colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm)
+            cset = map1.contour(x, y, myData,levels=[0.95,0.99],colors = ['y','r'], linewidths=[2.,2.],extent='both')
+            plt.clabel(cset, fmt='%1.2f', inline=1, fontsize=10)
+            cb = map1.colorbar(colorf,ticks = numpy.arange(0,1.2,0.2),location='bottom', pad="5%")
+            cb.ax.set_xticklabels(['0.0','20%','40%','60%','80%','100%'])
+            cb.cmap.set_under('w')
+            cb.cmap.set_over('g')
+            cb.set_label(r'Latent energy divergence (Wm-2)')
+        elif montecarlo == False:
+            v = numpy.arange(-200, 201, 20)
+            cmap = plt.cm.get_cmap('RdBu_r')
+            bounds = v
+            norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
+            colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm,extend = 'both')
+            cb = map1.colorbar(colorf, location='bottom', pad="5%")
+            cb.cmap.set_under('m')
+            cb.cmap.set_over('g')
+            cb.set_label(r'Latent energy divergence (Wm-2)')
 
     if sphereProjection == True:
         map1.drawmeridians([-150,-120,-90,-60,-30,0,30,60,90,120,150,180], labels=[1,1,1,1], linewidth=1.0)
         map1.drawparallels(numpy.arange(60,81,10),labels=[1,1,1,1], linewidth=1.0)
-
+    elif sphereProjection == False:
+        map1.drawparallels(numpy.arange(lat1,lat2 + 1,10),labels=[1,0,0,0], linewidth=0.0)
+        map1.drawmeridians(numpy.arange(lon1,lon2 + 1,10),labels=[0,0,0,1], linewidth=0.0)
+    
     map1.drawcoastlines()
 #    map1.bluemarble()
 #    map1.etopo()
     map1.drawcountries()
     ax1.set_title(str(figTitle))
-    ax1.annotate('Ave = 5.01', xy = (10,40), xytext=(40,76))
+#    ax1.annotate('Ave = 5.01', xy = (10,40), xytext=(40,76))
     if store == True:
         plt.savefig('/home/nba035/plot/'+name+'.eps',dpi = 80, format = 'eps')
 
@@ -522,15 +542,6 @@ def plotIndex(xdata, ydata, numberofmonth, overplot = False, inputClass = 'array
     plt.title('Sea Surface Ice Index for Jan. Feb. and Mar. 1979-2016 for lat (75,90) and lon (0,360)')
     
     plt.show()
-
-
-
-
-
-
-
-
-
 
 
 

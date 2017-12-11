@@ -4,12 +4,18 @@ import codecs
 import matplotlib
 import matplotlib.pyplot as plt
 
+highY1=str(1981)
+highY2=str(1982)
+lowY1=str(1979)
+lowY2=str(1984)
 
-highPlot = ['DivQIndexLand_1982_1988_Mar_10W40E_35N75N','DivQIndexLand_1982_1988_Apr_10W40E_35N75N',\
-'DivQIndexLand_1982_1988_May_10W40E_35N75N','DivQIndexLand_1982_1988_Jun_10W40E_35N75N',\
-'DivQIndexLand_1982_1988_Jul_10W40E_35N75N','DivQIndexLand_1982_1988_Aug_10W40E_35N75N','DivQIndexLand_1982_1988_Sep_10W40E_35N75N',\
-'DivQIndexLand_1982_1988_Oct_10W40E_35N75N','DivQIndexLand_1982_1988_Nov_10W40E_35N75N','DivQIndexLand_1982_1988_Dec_10W40E_35N75N',\
-'DivQIndexLand_1982_1988_Jan_10W40E_35N75N']
+saveMonth = 'Aug'
+
+highPlot = ['DivQIndexLand_'+highY1+'_'+highY2+'_Mar_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Apr_10W40E_35N75N',\
+'DivQIndexLand_'+highY1+'_'+highY2+'_May_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Jun_10W40E_35N75N',\
+'DivQIndexLand_'+highY1+'_'+highY2+'_Jul_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Aug_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Sep_10W40E_35N75N',\
+'DivQIndexLand_'+highY1+'_'+highY2+'_Oct_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Nov_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Dec_10W40E_35N75N',\
+'DivQIndexLand_'+highY1+'_'+highY2+'_Jan_10W40E_35N75N']
 
 avePlot = ['DivQIndexLand_1979_2014_Mar_10W40E_35N75N','DivQIndexLand_1979_2014_Apr_10W40E_35N75N',\
 'DivQIndexLand_1979_2014_May_10W40E_35N75N','DivQIndexLand_1979_2014_Jun_10W40E_35N75N',\
@@ -17,12 +23,32 @@ avePlot = ['DivQIndexLand_1979_2014_Mar_10W40E_35N75N','DivQIndexLand_1979_2014_
 'DivQIndexLand_1979_2014_Oct_10W40E_35N75N','DivQIndexLand_1979_2014_Nov_10W40E_35N75N','DivQIndexLand_1979_2014_Dec_10W40E_35N75N',\
 'DivQIndexLand_1979_2014_Jan_10W40E_35N75N']
 
-lowPlot = ['DivQIndexLand_1984_1985_Mar_10W40E_35N75N','DivQIndexLand_1984_1985_Apr_10W40E_35N75N',\
-'DivQIndexLand_1984_1985_May_10W40E_35N75N','DivQIndexLand_1984_1985_Jun_10W40E_35N75N',\
-'DivQIndexLand_1984_1985_Jul_10W40E_35N75N','DivQIndexLand_1984_1985_Aug_10W40E_35N75N','DivQIndexLand_1984_1985_Sep_10W40E_35N75N',\
-'DivQIndexLand_1984_1985_Oct_10W40E_35N75N','DivQIndexLand_1984_1985_Nov_10W40E_35N75N','DivQIndexLand_1984_1985_Dec_10W40E_35N75N',\
-'DivQIndexLand_1984_1985_Jan_10W40E_35N75N']
+lowPlot = ['DivQIndexLand_'+lowY1+'_'+lowY2+'_Mar_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Apr_10W40E_35N75N',\
+'DivQIndexLand_'+lowY1+'_'+lowY2+'_May_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Jun_10W40E_35N75N',\
+'DivQIndexLand_'+lowY1+'_'+lowY2+'_Jul_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Aug_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Sep_10W40E_35N75N',\
+'DivQIndexLand_'+lowY1+'_'+lowY2+'_Oct_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Nov_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Dec_10W40E_35N75N',\
+'DivQIndexLand_'+lowY1+'_'+lowY2+'_Jan_10W40E_35N75N']
 
+'''
+highPlot = ['DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Mar_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Apr_10W40E_35N75N',\
+'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_May_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Jun_10W40E_35N75N',\
+'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Jul_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Aug_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Sep_10W40E_35N75N',\
+'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Oct_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Nov_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Dec_10W40E_35N75N',\
+'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Jan_10W40E_35N75N']
+
+avePlot = ['DivQIndexLand_1979_2014_Mar_10W40E_35N75N','DivQIndexLand_1979_2014_Apr_10W40E_35N75N',\
+'DivQIndexLand_1979_2014_May_10W40E_35N75N','DivQIndexLand_1979_2014_Jun_10W40E_35N75N',\
+'DivQIndexLand_1979_2014_Jul_10W40E_35N75N','DivQIndexLand_1979_2014_Aug_10W40E_35N75N','DivQIndexLand_1979_2014_Sep_10W40E_35N75N',\
+'DivQIndexLand_1979_2014_Oct_10W40E_35N75N','DivQIndexLand_1979_2014_Nov_10W40E_35N75N','DivQIndexLand_1979_2014_Dec_10W40E_35N75N',\
+'DivQIndexLand_1979_2014_Jan_10W40E_35N75N']
+
+lowPlot = ['DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Mar_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Apr_10W40E_35N75N',\
+'DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_May_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Jun_10W40E_35N75N',\
+'DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Jul_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Aug_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Sep_10W40E_35N75N',\
+'DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Oct_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Nov_10W40E_35N75N','DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Dec_10W40E_35N75N',\
+'DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Jan_10W40E_35N75N']
+
+'''
 xdata = numpy.arange(len(avePlot))
 
 month = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan']
@@ -61,12 +87,12 @@ ax.plot(xdata, lowMinusAve, '-ob', linewidth = 3., label = 'low')
 plt.xlabel('Month')
 plt.ylabel('Latent energy (Wm-2)')
 plt.xticks(xdata,month)
-plt.title("Latent energy anomolies of the years with highest and lowest SIC")
+plt.title("Latent energy anomolies of the years with highest and lowest SIC in Aug.")
 plt.grid(True)
 plt.legend(loc=4)
 #plt.xlim(1979,2014)
 
-#plt.savefig('/home/nba035/plot/latentEnergyAnomalies.eps', format = 'eps')
+#plt.savefig('/home/nba035/plot/sicSelectedLatentTrend'+saveMonth+'.eps', format = 'eps')
 plt.show()
 
 
