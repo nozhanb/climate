@@ -173,3 +173,8 @@ I made some changes to the europeMap function in the energyice file. Also, some
 changes to the differenceMa.py (today) and trendPersistence.py (a few days ago).
 Now using the differenceMap.py we can generagte difference maps with montecarlo
 contours overplotted on top of them.
+
+December 15, 2017
+
+I made some changes to the difference.py and added the high and low years of the 
+SIC of the August and September and EOF1 (another September) to the fit.py.
