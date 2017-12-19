@@ -219,7 +219,6 @@ class EnergyIce:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
-            fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
             cosValue = numpy.cos(fastLat*(3.14/180.))
             cosValue = cosValue.reshape(1,self.finalLat.size,1)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
@@ -284,8 +283,9 @@ class EnergyIce:
         #   The self.days is correct for now but in the future if you are planning to change the code watch out self.days!!!
         import random
         yArray = numpy.arange(1979,2015)
-        totalFinalIndex = numpy.array([])
         day1 = maskName[8:10]
+        monteCount = 0.
+        totalFinalIndex = numpy.array([])
         totalAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
@@ -305,16 +305,27 @@ class EnergyIce:
             totalFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             totalFastEnergy = numpy.ma.masked_where(maskOfEurope,totalFastEnergy).filled(0.)
             totalAverage = totalAverage + numpy.sum(totalFastEnergy,0)/self.days
+  
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/self.days
-        
+
         subtractedSpecific = EnergyAverage - totalAverage
+        localIndex = numpy.array([])
+        for i in range(self.finalLat.size):
+            numerator = numpy.sum(subtractedSpecific[i:i+1,:]*cosValue[i:i+1,:])
+            denominator = numpy.count_nonzero(subtractedSpecific[i:i+1,:])*numpy.sum(cosValue[i:i+1,:])
+            if denominator == 0.:
+                localIndex = numpy.append(localIndex,0.)
+            elif denominator != 0.:
+                localIndex = numpy.append(localIndex,numerator/denominator)
+        totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
         for i in range(0,counts):
             print "Monte Carlo cycle: ", i
-            mcFiles = []           
+            mcFiles = []
+            monteFinalIndex = numpy.array([])
             years = random.sample(yArray,len(self.filex))
             mcEnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for ycount in years:
@@ -326,8 +337,20 @@ class EnergyIce:
                 mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/self.days
             subtractedMc = mcEnergyAverage - totalAverage
             cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedSpecific),numpy.absolute(subtractedMc)).astype(float)
+            monteLocalIndex = numpy.array([])
+            for i in range(self.finalLat.size):
+                numerator = numpy.sum(subtractedMc[i:i+1,:]*cosValue[i:i+1,:])
+                denominator = numpy.count_nonzero(subtractedMc[i:i+1,:])*numpy.sum(cosValue[i:i+1,:])
+                if denominator == 0.:
+                    monteLocalIndex = numpy.append(monteLocalIndex,0.)
+                elif denominator != 0.:
+                    monteLocalIndex = numpy.append(monteLocalIndex,numerator/denominator)
+            monteFinalIndex = numpy.append(monteFinalIndex,numpy.sum(monteLocalIndex))
+            if abs(numpy.sum(totalFinalIndex)) > abs(numpy.sum(monteFinalIndex)):
+                monteCount += 1.
         finalDensity = cellDensity/counts
-
+        indexSignificance = monteCount/counts
+        
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -364,7 +387,7 @@ class EnergyIce:
             finalDensity.tofile(ff2,sep=",")
 #            ff1.close()
             ff2.close()
-        return finalDensity
+        return finalDensity, indexSignificance
 
 
     def fitting(self, xData, yData, fitFunction = None, **params):
@@ -384,23 +407,21 @@ class EnergyIce:
 
 def smoothing(inArray, length = 7, mode = 'wrap'):
     """This function applies a smoothing technique to a given region."""
-    from scipy.ndimage import uniform_filter
-    filt = numpy.zeros((61,720))                          #((81,101))
-    fastLat = numpy.arange(89.5,29.5,-0.5)          #(90,59.5,-0.5)
-#    fastLat = numpy.arange(75,34.5,-0.5)
-    print '----->', inArray.shape, fastLat.shape
+    from scipy.ndimage import uniform_filter1d
+    filt = numpy.zeros((101,720))
+    fastLat = numpy.arange(80,29.5,-0.5)
     cosValue = numpy.cos(fastLat*(3.14/180.))
     cosValue = cosValue.reshape(fastLat.size,1)
-    numerator = uniform_filter((inArray*cosValue),size=length,origin=0,mode = mode)
+    numerator = uniform_filter1d((inArray*cosValue),axis=0,size=length,origin=0,mode = mode)
     denominator = numerator.reshape(inArray.shape)/cosValue
     for ilat in range(len(fastLat)):
-        lonStep = int(round(min([720.,14.]/numpy.cos(fastLat[ilat]*(3.14/180.)))))
-        filt[ilat:ilat+1,:] = uniform_filter(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
-    return numerator
+        lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))
+        filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+    return filt
 
-        
-        
-        
+
+
+
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
      plotType = 'contourf', montecarlo = False, store = False, name = None):
 
@@ -418,7 +439,7 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
     if sphereProjection == True:
         map1 = Basemap(projection='npstere', boundinglat=60, llcrnrlon=lon1,llcrnrlat=lat1, \
         urcrnrlon=lon2, urcrnrlat=lat2, lon_0 = 270, round=True)
-    print "Thi sis the shapes: ----->", data.shape, latitude123.shape, longitude123.shape
+    print "This is the shapes: ----->", data.shape, latitude123.shape, longitude123.shape
     lons,lats = numpy.meshgrid(longitude123,latitude123)
     x, y = map1(lons,lats)
     myData = data.reshape((latitude123.size,longitude123.size))
@@ -434,7 +455,7 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
             bounds = v
             norm = mpl.colors.BoundaryNorm(bounds, cmap.N)
             colorf = map1.contourf(x, y, myData,v,cmap=cmap,norm=norm)
-            cset = map1.contour(x, y, myData,levels=[0.95,0.99],colors = ['y','r'], linewidths=[2.,2.],extent='both')
+            cset = map1.contour(x, y, myData,levels=[0.90,0.95],colors = ['y','r'], linewidths=[2.,2.],extent='both')
             plt.clabel(cset, fmt='%1.2f', inline=1, fontsize=10)
             cb = map1.colorbar(colorf,ticks = numpy.arange(0,1.2,0.2),location='bottom', pad="5%")
             cb.ax.set_xticklabels(['0.0','20%','40%','60%','80%','100%'])

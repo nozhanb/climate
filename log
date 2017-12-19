@@ -178,3 +178,9 @@ December 15, 2017
 
 I made some changes to the difference.py and added the high and low years of the 
 SIC of the August and September and EOF1 (another September) to the fit.py.
+
+December 19, 2017
+
+I fixed the smoothing function of the energyice.py. I need to check with Rune 
+but I almost sure that it is correct. I may make some changes to it late since
+I think the smoothing procedure still can be done in different ways.
