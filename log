@@ -184,3 +184,11 @@ December 19, 2017
 I fixed the smoothing function of the energyice.py. I need to check with Rune 
 but I almost sure that it is correct. I may make some changes to it late since
 I think the smoothing procedure still can be done in different ways.
+
+December 21, 2017
+
+I added the index checking part to the montecarlo function of the energyice.py.
+Now it can test whether the index value (average value of energy) for a given 
+area is statistically significant or not. Still needs to be checked to make 
+that it is working fine but base on the initial values it seems to be working 
+just fine.

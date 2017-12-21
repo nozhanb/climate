@@ -278,7 +278,8 @@ class EnergyIce:
 
 
     def montecarlo(self, maskName = 'landMask30_10W40E_35N75N', content = 'DivQ', \
-                    counts = 100, save = True, highLowAndMonth = None, outputName = None):
+                    counts = 100, indexSig = False, save = True, \
+                    highLowAndMonth = None, outputName = None):
         #   years has to be a list of years in integer format.
         #   The self.days is correct for now but in the future if you are planning to change the code watch out self.days!!!
         import random
@@ -286,6 +287,7 @@ class EnergyIce:
         day1 = maskName[8:10]
         monteCount = 0.
         totalFinalIndex = numpy.array([])
+        normalFinalIndex= numpy.array([])
         totalAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
@@ -297,31 +299,49 @@ class EnergyIce:
         fastLat = numpy.arange(75,34.5,-0.5)
         cosValue = numpy.cos(fastLat*(3.14/180.))
         cosValue = cosValue.reshape(fastLat.size,1)
-        totalFiles = []        
+        totalFiles = []
         for totalYear in numpy.arange(1979,2015):
-                totalFiles.append(content+'.'+str(totalYear)+'.'+str(self.month[0])+'.nc')
+            totalFiles.append(content+'.'+str(totalYear)+'.'+str(self.month[0])+'.nc')
         for totalName in totalFiles:
             loaded_file = netCDF4.Dataset(self.path+totalName)
             totalFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             totalFastEnergy = numpy.ma.masked_where(maskOfEurope,totalFastEnergy).filled(0.)
             totalAverage = totalAverage + numpy.sum(totalFastEnergy,0)/self.days
-  
+            if indexSig == True:
+                cosValue = cosValue.reshape(1,fastLat.size,1)
+                totalLocalIndex = numpy.array([])
+                for i in range(self.finalLat.size):
+                    numerator = numpy.sum(numpy.sum(totalFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                    denominator = numpy.count_nonzero(totalFastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
+                    if denominator == 0.:
+                        totalLocalIndex = numpy.append(totalLocalIndex,0.)
+                    elif denominator != 0.:
+                        totalLocalIndex = numpy.append(totalLocalIndex,numerator/denominator)
+                totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(totalLocalIndex))
+        
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/self.days
+            if indexSig == True:
+                cosValue = cosValue.reshape(1,fastLat.size,1)
+                normalLocalIndex = numpy.array([])
+                for i in range(self.finalLat.size):
+                    numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                    denominator = numpy.count_nonzero(fastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
+                    if denominator == 0.:
+                        normalLocalIndex = numpy.append(normalLocalIndex,0.)
+                    elif denominator != 0.:
+                        normalLocalIndex = numpy.append(normalLocalIndex,numerator/denominator)
+                normalFinalIndex = numpy.append(normalFinalIndex,numpy.sum(normalLocalIndex))
 
+        if indexSig == True:
+            totalFinalIndexAve = numpy.average(totalFinalIndex)
+            normalFinalIndex = numpy.average(normalFinalIndex)
+            finalValue = normalFinalIndex - totalFinalIndexAve
+            
         subtractedSpecific = EnergyAverage - totalAverage
-        localIndex = numpy.array([])
-        for i in range(self.finalLat.size):
-            numerator = numpy.sum(subtractedSpecific[i:i+1,:]*cosValue[i:i+1,:])
-            denominator = numpy.count_nonzero(subtractedSpecific[i:i+1,:])*numpy.sum(cosValue[i:i+1,:])
-            if denominator == 0.:
-                localIndex = numpy.append(localIndex,0.)
-            elif denominator != 0.:
-                localIndex = numpy.append(localIndex,numerator/denominator)
-        totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
         for i in range(0,counts):
             print "Monte Carlo cycle: ", i
             mcFiles = []
@@ -335,21 +355,26 @@ class EnergyIce:
                 mcFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                 mcFastEnergy = numpy.ma.masked_where(maskOfEurope,mcFastEnergy).filled(0.)
                 mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/self.days
+                if indexSig == True:
+                    cosValue = cosValue.reshape(1,fastLat.size,1)
+                    monteLocalIndex = numpy.array([])
+                    for i in range(self.finalLat.size):
+                        numerator = numpy.sum(numpy.sum(mcFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                        denominator = numpy.count_nonzero(mcFastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
+                        if denominator == 0.:
+                            monteLocalIndex = numpy.append(monteLocalIndex,0.)
+                        elif denominator != 0.:
+                            monteLocalIndex = numpy.append(monteLocalIndex,numerator/denominator)
+                    monteFinalIndex = numpy.append(monteFinalIndex,numpy.sum(monteLocalIndex))
+            if indexSig == True:
+                monteValue = numpy.average(monteFinalIndex) - totalFinalIndexAve
+                if abs(finalValue) > abs(monteValue):
+                    monteCount += 1.
             subtractedMc = mcEnergyAverage - totalAverage
             cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedSpecific),numpy.absolute(subtractedMc)).astype(float)
-            monteLocalIndex = numpy.array([])
-            for i in range(self.finalLat.size):
-                numerator = numpy.sum(subtractedMc[i:i+1,:]*cosValue[i:i+1,:])
-                denominator = numpy.count_nonzero(subtractedMc[i:i+1,:])*numpy.sum(cosValue[i:i+1,:])
-                if denominator == 0.:
-                    monteLocalIndex = numpy.append(monteLocalIndex,0.)
-                elif denominator != 0.:
-                    monteLocalIndex = numpy.append(monteLocalIndex,numerator/denominator)
-            monteFinalIndex = numpy.append(monteFinalIndex,numpy.sum(monteLocalIndex))
-            if abs(numpy.sum(totalFinalIndex)) > abs(numpy.sum(monteFinalIndex)):
-                monteCount += 1.
         finalDensity = cellDensity/counts
-        indexSignificance = monteCount/counts
+        if indexSig == True:
+            indexSignificance = monteCount/counts
         
         if save == True:
             if self.lat5[0] < 0.0:
@@ -387,9 +412,14 @@ class EnergyIce:
             finalDensity.tofile(ff2,sep=",")
 #            ff1.close()
             ff2.close()
-        return finalDensity, indexSignificance
-
-
+        if indexSig == True:
+            return finalDensity , indexSignificance
+        elif indexSig == False:
+            return finalDensity
+            
+            
+            
+            
     def fitting(self, xData, yData, fitFunction = None, **params):
         import scipy
         if fitFunction is None:
@@ -490,82 +520,3 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         plt.savefig('/home/nba035/plot/'+name+'.eps',dpi = 80, format = 'eps')
 
     plt.show()
-
-
-
-def plotIndex(xdata, ydata, numberofmonth, overplot = False, inputClass = 'array'):
-
-    #   xdata: give the initial and final year in int and tuple form.
-		    #   ydata: is the output from the ice_reader function. It is a dictionary.
-    #   numberofmonth: is the number of month that is covered in the ydata. It is of the int format.
-    #   overplot: if it is True it will the function will generate a plot with all the given month overplotted.
-    #   if it is False the function will generate a seperate graph for each month (no overplot).
-    #   inputClass: can be array for a simple numpy array or dictionary. It must be given in string format.
-
-    #   Tests: check for the order of data both in year and in ydata to see if the right year is associated 
-    #   with the right year.
-    #   Also fix the labels and tickmarks (there are many tick marks).
-
-
-    colour = ['g','r','k','m','b']
-    x_axis = xdata
-    y_axis = ydata
-    valueArray = numpy.array([])
-    for key, value in y_axis.iteritems():
-	valueArray = numpy.append(valueArray, value)
-
-    arrayLength = valueArray.size
-    interval = int(arrayLength/int(numberofmonth))
-    intervalArray = numpy.arange(0,arrayLength+1,interval)  #   +1 so the end point is included.
-    
-    if overplot == True:
-        fig1, ax1 = plt.subplots(1, figsize=(15,6))
-        ini = intervalArray[0]
-        month = 1
-        for counter1 in range(numberofmonth):
-            end = intervalArray[counter1+1]
-            yplot = valueArray[ini:end]
-            yearArray = numpy.arange(x_axis[0], x_axis[1]+1)
-            ax1.plot(yearArray,yplot,color = colour[counter1], linestyle ='-', linewidth = 3.0, label = calendar.month_name[month])
-            ini = end
-            ax1.set_xlim(x_axis[0], x_axis[1])
-            ax1.grid('on')
-            month += 1
-        plt.legend(bbox_to_anchor=(0.15, 0.25))
-    elif overplot == False:
-        if int(numberofmonth%2) == 0:
-            fig1, ax1 = plt.subplots(int(numberofmonth/2),2, figsize=(15,6))
-        elif int(numberofmonth%2) != 0:
-            fig1, ax1 = plt.subplots(int(numberofmonth),1, figsize=(15,6), sharex = True)
-        
-        ini = intervalArray[0]
-        row = 0
-        for counter2 in range(numberofmonth):
-            end = intervalArray[counter2+1]
-            yplot = valueArray[ini:end]
-            yearArray = numpy.arange(x_axis[0], x_axis[1]+1)
-            ax1[row].plot(yearArray, yplot, color = colour[counter2], linestyle ='-', linewidth = 3.0)
-            ax1[row].set_xlim(x_axis[0], x_axis[1])
-            ax1[row].grid('on')
-            ini = end
-            row +=1
-            
-            #   Tick-adjusment section:
-            if row == 1:
-                ytick = ax1[1].yaxis.get_major_locator
-#                   if len(ytick)%2 == 0:
-                       
-            
-        fig1.subplots_adjust(hspace=0)
-
-    plt.xlabel('Year', fontsize = 17)
-    plt.ylabel('SSI Index', fontsize = 17)
-    plt.title('Sea Surface Ice Index for Jan. Feb. and Mar. 1979-2016 for lat (75,90) and lon (0,360)')
-    
-    plt.show()
-
-
-
-
-
-
