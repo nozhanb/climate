@@ -4,13 +4,13 @@ import codecs
 import matplotlib
 import matplotlib.pyplot as plt
 
-highY1=str(1981)
-highY2=str(1982)
-lowY1=str(1979)
-lowY2=str(1984)
+month = 'Sep'
+highYear1 = str(1982)
+highYear2 = str(1988)
+lowYear1 = str(1984)
+lowYear2 = str(1985)
 
-saveMonth = 'Aug'
-
+'''
 highPlot = ['DivQIndexLand_'+highY1+'_'+highY2+'_Mar_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Apr_10W40E_35N75N',\
 'DivQIndexLand_'+highY1+'_'+highY2+'_May_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Jun_10W40E_35N75N',\
 'DivQIndexLand_'+highY1+'_'+highY2+'_Jul_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Aug_10W40E_35N75N','DivQIndexLand_'+highY1+'_'+highY2+'_Sep_10W40E_35N75N',\
@@ -29,7 +29,7 @@ lowPlot = ['DivQIndexLand_'+lowY1+'_'+lowY2+'_Mar_10W40E_35N75N','DivQIndexLand_
 'DivQIndexLand_'+lowY1+'_'+lowY2+'_Oct_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Nov_10W40E_35N75N','DivQIndexLand_'+lowY1+'_'+lowY2+'_Dec_10W40E_35N75N',\
 'DivQIndexLand_'+lowY1+'_'+lowY2+'_Jan_10W40E_35N75N']
 
-'''
+
 highPlot = ['DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Mar_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Apr_10W40E_35N75N',\
 'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_May_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Jun_10W40E_35N75N',\
 'DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Jul_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Aug_10W40E_35N75N','DivQIndexEOF1HighSepLand_'+highY1+'_'+highY2+'_Sep_10W40E_35N75N',\
@@ -49,28 +49,29 @@ lowPlot = ['DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Mar_10W40E_35N75N','DivQ
 'DivQIndexEOF1LowSepLand_'+lowY1+'_'+lowY2+'_Jan_10W40E_35N75N']
 
 '''
-xdata = numpy.arange(len(avePlot))
 
-month = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan']
+months = ['Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan']
+
+xdata = numpy.arange(len(months))
 
 highAv = []
 aveAv  = []
 lowAv  = []
 
-for high in highPlot:
-	highData3 = codecs.open(high,'r').read()
+for aveMonth in months:
+	highData3 = codecs.open('/global/work/nba035/WRF/thesis/data/test/backUp/DivQIndexHigh'+month+'BarentsLand_'+highYear1+'_'+highYear2+'_'+aveMonth+'_10W40E_35N75N','r').read()
 	highData2 = json.loads(highData3)
 	highData = numpy.array(highData2)
 	highAv.append(numpy.average(highData))
 
-for avi in avePlot:
-	average3 = codecs.open(avi,'r').read()
+for aveMonth in months:
+	average3 = codecs.open('/global/work/nba035/WRF/thesis/data/test/backUp/DivQIndexLand_1979_2014_'+aveMonth+'_10W40E_35N75N','r').read()
 	average2 = json.loads(average3)
 	average = numpy.array(average2)
 	aveAv.append(numpy.average(average))
 
-for low in lowPlot:
-	lowData3 = codecs.open(low,'r').read()
+for aveMonth in months:
+	lowData3 = codecs.open('/global/work/nba035/WRF/thesis/data/test/backUp/DivQIndexLow'+month+'BarentsLand_'+lowYear1+'_'+lowYear2+'_'+aveMonth+'_10W40E_35N75N','r').read()
 	lowData2 = json.loads(lowData3)
 	lowData = numpy.array(lowData2)
 	lowAv.append(numpy.average(lowData))

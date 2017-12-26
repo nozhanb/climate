@@ -54,12 +54,12 @@ class EnergyIce:
 
         totalLon = numpy.arange(-180,180,0.5)
         totalLat = numpy.arange(90,29.5,-0.5)
-        lonInitialIndex = numpy.where(totalLon==float(self.lon5[0]))
-        lonEndIndex = numpy.where(totalLon==float(self.lon5[1]))
-        latInitialIndex = numpy.where(totalLat==float(self.lat5[0]))
-        latEndIndex = numpy.where(totalLat==float(self.lat5[1]))
-        self.finalLon = numpy.arange(lonInitialIndex[0][0], lonEndIndex[0][0] + 1)
-        self.finalLat = numpy.arange(latEndIndex[0][0], latInitialIndex[0][0] + 1)  #   Notice that latitude is ordered differently.
+        self.lonInitialIndex = numpy.where(totalLon==float(self.lon5[0]))
+        self.lonEndIndex = numpy.where(totalLon==float(self.lon5[1]))
+        self.latInitialIndex = numpy.where(totalLat==float(self.lat5[0]))
+        self.latEndIndex = numpy.where(totalLat==float(self.lat5[1]))
+        self.finalLon = numpy.arange(self.lonInitialIndex[0][0], self.lonEndIndex[0][0] + 1)
+        self.finalLat = numpy.arange(self.latEndIndex[0][0], self.latInitialIndex[0][0] + 1)  #   Notice that latitude is ordered differently.
                 
         
         if allYears == True:
@@ -100,7 +100,7 @@ class EnergyIce:
                 cosValue = numpy.cos(fastLat*(3.14/180.))
                 cosValue = cosValue.reshape(self.finalLat.size, 1)
                 maskedIceFraction = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])*cosValue
-                #   There are some cells in which the value of ice fraction is e+29 (i.e. regions covered with land) so we set them to zero.
+                #   There are some cells in which the value of ice fraction is e+19 (i.e. regions covered with land) so we set them to zero.
                 if landMask == True:
                     landMa = numpy.ma.masked_less(maskedIceFraction,2.).filled(0.)
 
@@ -277,26 +277,22 @@ class EnergyIce:
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
 
-    def montecarlo(self, maskName = 'landMask30_10W40E_35N75N', content = 'DivQ', \
+    def montecarlo(self, maskName = 'totalLandMask', content = 'DivQ', \
                     counts = 100, indexSig = False, save = True, \
                     highLowAndMonth = None, outputName = None):
         #   years has to be a list of years in integer format.
         #   The self.days is correct for now but in the future if you are planning to change the code watch out self.days!!!
         import random
         yArray = numpy.arange(1979,2015)
-        day1 = maskName[8:10]
         monteCount = 0.
         totalFinalIndex = numpy.array([])
         normalFinalIndex= numpy.array([])
         totalAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
-        landCoor = numpy.fromfile(maskName,float,-1,",")
-        landCoor = landCoor.reshape(1,81,101).repeat(int(day1),0)   #   The number of days in this line does not count for LEAP years.
-        maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
-#        fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
-#        fastLon = numpy.array(loaded_file.variables['lon'][self.finalLon[0]:self.finalLon[-1]+1])
-        fastLat = numpy.arange(75,34.5,-0.5)
+        landCoor2 = numpy.fromfile(maskName,float,-1,",").reshape(121,720)
+        landCoor1 =landCoor2[self.latEndIndex[0][0]:self.latInitialIndex[0][0]+1,self.lonInitialIndex[0][0]:self.lonEndIndex[0][0]+1]
+        fastLat = numpy.arange(self.lat5[1],self.lat5[0]-0.5,-0.5)
         cosValue = numpy.cos(fastLat*(3.14/180.))
         cosValue = cosValue.reshape(fastLat.size,1)
         totalFiles = []
@@ -304,14 +300,17 @@ class EnergyIce:
             totalFiles.append(content+'.'+str(totalYear)+'.'+str(self.month[0])+'.nc')
         for totalName in totalFiles:
             loaded_file = netCDF4.Dataset(self.path+totalName)
+            days = calendar.monthrange(int(totalName[5:9]),int(totalName[10:12]))[1]
+            landCoor = landCoor1.reshape(1,self.finalLat.size,self.finalLon.size).repeat(days,0)   #   The number of days in this line does not count for LEAP years.
+            maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
             totalFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             totalFastEnergy = numpy.ma.masked_where(maskOfEurope,totalFastEnergy).filled(0.)
-            totalAverage = totalAverage + numpy.sum(totalFastEnergy,0)/self.days
+            totalAverage = totalAverage + numpy.sum(totalFastEnergy,0)/days
             if indexSig == True:
                 cosValue = cosValue.reshape(1,fastLat.size,1)
                 totalLocalIndex = numpy.array([])
                 for i in range(self.finalLat.size):
-                    numerator = numpy.sum(numpy.sum(totalFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                    numerator = numpy.sum(numpy.sum(totalFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
                     denominator = numpy.count_nonzero(totalFastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
                     if denominator == 0.:
                         totalLocalIndex = numpy.append(totalLocalIndex,0.)
@@ -321,14 +320,17 @@ class EnergyIce:
         
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
+            days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
+            landCoor = landCoor1.reshape(1,self.finalLat.size,self.finalLon.size).repeat(days,0)   #   The number of days in this line does not count for LEAP years.
+            maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
-            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/self.days
+            EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
             if indexSig == True:
                 cosValue = cosValue.reshape(1,fastLat.size,1)
                 normalLocalIndex = numpy.array([])
                 for i in range(self.finalLat.size):
-                    numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                    numerator = numpy.sum(numpy.sum(fastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
                     denominator = numpy.count_nonzero(fastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
                     if denominator == 0.:
                         normalLocalIndex = numpy.append(normalLocalIndex,0.)
@@ -342,6 +344,7 @@ class EnergyIce:
             finalValue = normalFinalIndex - totalFinalIndexAve
             
         subtractedSpecific = EnergyAverage - totalAverage
+        
         for i in range(0,counts):
             print "Monte Carlo cycle: ", i
             mcFiles = []
@@ -352,14 +355,17 @@ class EnergyIce:
                 mcFiles.append(content+'.'+str(ycount)+'.'+str(self.month[0])+'.nc')
             for j in mcFiles:
                 loaded_file = netCDF4.Dataset(self.path+j)
+                days = calendar.monthrange(int(j[5:9]),int(j[10:12]))[1]
+                landCoor = landCoor1.reshape(1,self.finalLat.size,self.finalLon.size).repeat(days,0)   #   The number of days in this line does not count for LEAP years.
+                maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
                 mcFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                 mcFastEnergy = numpy.ma.masked_where(maskOfEurope,mcFastEnergy).filled(0.)
-                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/self.days
+                mcEnergyAverage = mcEnergyAverage + numpy.sum(mcFastEnergy,0)/days
                 if indexSig == True:
                     cosValue = cosValue.reshape(1,fastLat.size,1)
                     monteLocalIndex = numpy.array([])
                     for i in range(self.finalLat.size):
-                        numerator = numpy.sum(numpy.sum(mcFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/self.days)
+                        numerator = numpy.sum(numpy.sum(mcFastEnergy[:,i:i+1,:]*cosValue[:,i:i+1,:],0)/days)
                         denominator = numpy.count_nonzero(mcFastEnergy[:,i:i+1,:])*numpy.sum(cosValue[:,i:i+1,:])
                         if denominator == 0.:
                             monteLocalIndex = numpy.append(monteLocalIndex,0.)
@@ -447,6 +453,7 @@ def smoothing(inArray, length = 7, mode = 'wrap'):
     for ilat in range(len(fastLat)):
         lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))
         filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+    
     return filt
 
 

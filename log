@@ -192,3 +192,16 @@ Now it can test whether the index value (average value of energy) for a given
 area is statistically significant or not. Still needs to be checked to make 
 that it is working fine but base on the initial values it seems to be working 
 just fine.
+
+December 26, 2017
+
+I added the box feature to the Montecarlo function. Now it can read any given 
+box (i.e. longitudes and latitudes). I made a land-only coordinate file called 
+"totalLandMask". Now the Montecarlo code takes in any box size and it cuts the 
+given box out of the totalLandMask file. Also, now it can read any given month.
+It automatically figures the number of months so it does not need to be set 
+manually. This feature will probabily work for the February (bothe normal and 
+leap years) but it has not been tested yet. Also the trend.py file was updated.
+Now every month can be set in the beggining of the file similar to the 
+difference.py file.
+
