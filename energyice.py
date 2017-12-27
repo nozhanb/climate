@@ -207,17 +207,17 @@ class EnergyIce:
 
 
 
-    def landEnergyReader(self, fName, save = True, highLowAndMonth = None, outputName = None):
+    def landEnergyReader(self, fName = 'totalLandMask', save = True, highLowAndMonth = None, outputName = None):
         totalFinalIndex = numpy.array([])
-        day1 = fName[8:10]
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
-        landCoor = numpy.fromfile(fName,float,-1,",")
-        landCoor = landCoor.reshape(1,81,101).repeat(int(day1),0)   #   The number of days in this line does not count for LEAP years.
-        maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
+        landCoor2 = numpy.fromfile(fName,float,-1,",").reshape(121,720)
+        landCoor1 = landCoor2[self.latEndIndex[0][0]:self.latInitialIndex[0][0]+1,self.lonInitialIndex[0][0]:self.lonEndIndex[0][0]+1]
         
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
+            landCoor = landCoor1.reshape(1,self.finalLat.size,self.finalLon.size).repeat(days,0)   #   The number of days in this line does not count for LEAP years.
+            maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
             fastLat = numpy.array(loaded_file.variables['lat_NH'][self.finalLat[0]:self.finalLat[-1]+1])
             cosValue = numpy.cos(fastLat*(3.14/180.))
             cosValue = cosValue.reshape(1,self.finalLat.size,1)

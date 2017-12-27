@@ -205,3 +205,10 @@ leap years) but it has not been tested yet. Also the trend.py file was updated.
 Now every month can be set in the beggining of the file similar to the 
 difference.py file.
 
+December 27, 2017
+
+I made a minor change to the landEnergyReader method of the energyice.py.
+Now it can print out he February month. Also, I came up with a way to 
+use the moving window in the smoothing function. I have not implemented 
+it yet but soon I will do that.
+
