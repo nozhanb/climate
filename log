@@ -212,3 +212,10 @@ Now it can print out he February month. Also, I came up with a way to
 use the moving window in the smoothing function. I have not implemented 
 it yet but soon I will do that.
 
+
+Jan 29, 2018
+
+I made some changes to the fit.py. Mostly to ticks and tick labels of
+both y and x axes. Also, I generated some new latent energy plots using 
+energyLaneReader method. For further details on that check the back 
+folder in the home directory under the 2018-01-29.
