@@ -219,3 +219,11 @@ I made some changes to the fit.py. Mostly to ticks and tick labels of
 both y and x axes. Also, I generated some new latent energy plots using 
 energyLaneReader method. For further details on that check the back 
 folder in the home directory under the 2018-01-29.
+
+Feb 02, 2018
+
+A new (and small) feature was added to the energyice.py (i.e. the 
+montecarlo function). Now, this the montecarlo method will have three 
+different outputs (i.e. density of each cell, index significance, and 
+specific years and the number of times they have been repeated). It 
+does not have to be activated.
