@@ -66,19 +66,33 @@ class EnergyIce:
         elif allYears == False:
             self.yearRange = year
         
-        if fileContent  == 'SIC':
+        if self.fileContent  == 'SIC':
             for years in self.yearRange:
-                    self.filex.append('SIC.'+str(years)+'.nc')
-        elif fileContent == 'DivQ':
+                self.filex.append('SIC.'+str(years)+'.nc')
+        elif self.fileContent == 'DivQ':
             self.path = './dmDivQ_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
-        elif fileContent == 'DivD':
+        elif self.fileContent == 'DivD':
             self.path = './dmDivD_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivD.'+str(years)+'.'+str(months)+'.nc')
+        elif self.fileContent == 'Geopo':
+            self.path = './data/geoPo/'
+            for years in self.yearRange:
+                self.filex.append('Z.'+str(years)+'.nc')
+        elif self.fileContent == 'LiqWat':
+            self.path = './data/liqWat'
+            for years in self.yearRange:
+                self.filex.append('LiqWaterPath.'+str(years)+'.nc')
+        elif self.fileContent == 'FrozWat':
+            self.path = './data/frozWat'
+            for years in self.yearRange:
+                self.filex.append('FrozWaterPath.'+str(years)+'.nc')
+
+
 
 
 
@@ -198,7 +212,8 @@ class EnergyIce:
 
 
 
-    def landEnergyReader(self, fName = 'totalLandMask', save = True, highLowAndMonth = None, outputName = None):
+    def landEnergyReader(self, fName = 'totalLandMask', save = True, highLowAndMonth = None,\
+                        geoLevel = None, outputName = None):
         totalFinalIndex = numpy.array([])
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         landCoor2 = numpy.fromfile(fName,float,-1,",").reshape(121,720)
@@ -213,7 +228,7 @@ class EnergyIce:
             cosValue = numpy.cos(fastLat*(3.14/180.))
             cosValue = cosValue.reshape(1,self.finalLat.size,1)
             fastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-            fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)
+            fastEnergy = numpy.ma.masked_where(maskOfEurope,fastEnergy).filled(0.)                        
             EnergyAverage = EnergyAverage + numpy.sum(fastEnergy,0)/days
             localIndex = numpy.array([])
             for i in range(self.finalLat.size):
@@ -266,6 +281,77 @@ class EnergyIce:
             ff1.close()
             ff2.close()
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
+
+
+    def geoPoReader(self, fName = 'totalLandMask', geoLevel = 0, save = True,\
+                    highLowAndMonth = None, outputName = None):
+        #   If allMonths is set to False then months has to be given in the form 
+        #   of a list with integers in it where each integer stands for the 
+        #   associated month (e.g. 0 for januaray and 7 for August).
+   
+        totalFinalGeoPo = numpy.array([])
+        geoPoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        landCoor2 = numpy.fromfile(fName,float,-1,",").reshape(121,720)
+        landCoor1 = landCoor2[self.latEndIndex[0][0]:self.latInitialIndex[0][0]+1,self.lonInitialIndex[0][0]:self.lonEndIndex[0][0]+1]
+        
+        for fileName in self.filex:
+            loaded_file = netCDF4.Dataset(self.path+fileName)
+            landCoor = landCoor1.reshape(self.finalLat.size,self.finalLon.size)
+            maskOfEurope = numpy.ma.getmask(numpy.ma.masked_less(landCoor, 1))
+            fastLat = numpy.array(loaded_file.variables['g0_lat_2'][self.finalLat[0]:self.finalLat[-1]+1])
+            cosValue = numpy.cos(fastLat*(3.14/180.))
+            cosValue = cosValue.reshape(self.finalLat.size,1)
+            fastGeoPo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+#            fastGeoPo = numpy.ma.masked_where(maskOfEurope,fastGeoPo).filled(0.)
+            geoPoAverage = geoPoAverage + fastGeoPo
+            localGeoPo = numpy.array([])
+            
+            for i in range(self.finalLat.size):
+                numerator = numpy.sum(numpy.sum(fastGeoPo[i:i+1,:]*cosValue[i:i+1,:],0))
+                denominator = numpy.count_nonzero(fastGeoPo[i:i+1,:])*numpy.sum(cosValue[i:i+1,:])
+                if denominator == 0.:
+                    localGeoPo = numpy.append(localGeoPo,0.)
+                elif denominator != 0.:
+                    localGeoPo = numpy.append(localGeoPo,numerator/denominator)
+            totalFinalGeoPo = numpy.append(totalFinalGeoPo,numpy.sum(localGeoPo))
+            print fileName[2:6], '-----> DONE!!!'
+        if save == True:
+            if self.lat5[0] < 0.0:
+                latFir = 'S'
+            elif self.lat5[0] >= 0.0:
+                latFir = 'N'
+            if self.lat5[1] < 0.0:
+                latSec = 'S'
+            elif self.lat5[1] >= 0.0:
+                latSec = 'N'
+            if self.lon5[0] < 0.0:
+                lonFir = 'W'
+            elif self.lon5[0] >= 0.0:
+                lonFir = 'E'
+            if self.lon5[1] < 0.0:
+                lonSec = 'W'
+            elif self.lon5[1] >= 0.0:
+                lonSec = 'E'
+            if outputName == None:
+                nameToWrite2 = self.fileContent+'Average'
+            
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
+                
+            if len(self.filex) == 1:
+#                ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+            elif len(self.filex) > 1:
+#               ff1 = open(nameToWrite1+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'Land'+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+
+#            ff1.write(json.dumps(totalFinalIndex.tolist()))
+            ff2.write(json.dumps((geoPoAverage/float(len(self.yearRange))).tolist()))
+#            ff1.close()
+            ff2.close()
+        return geoPoAverage/float(len(self.yearRange)), totalFinalGeoPo
 
 
 

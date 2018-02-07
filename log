@@ -227,3 +227,11 @@ montecarlo function). Now, this the montecarlo method will have three
 different outputs (i.e. density of each cell, index significance, and 
 specific years and the number of times they have been repeated). It 
 does not have to be activated.
+
+Feb 07, 2018
+
+I added the geoPoReader function to the energyice.py. It reads in the 
+geopotential ehight data similar to energy and ice data. I still need 
+to add the same feature for the liquid and frozen water path data. 
+Also, I need to add the indexing feature and montecarlo code to be 
+able to read in these data.
