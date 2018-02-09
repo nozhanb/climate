@@ -235,3 +235,17 @@ geopotential ehight data similar to energy and ice data. I still need
 to add the same feature for the liquid and frozen water path data. 
 Also, I need to add the indexing feature and montecarlo code to be 
 able to read in these data.
+
+Feb 09, 2018
+
+I added the cloudReader function to the energyice.py. It cacluate the 
+amount of liquid water and frozen water in the atmosphere. The unit is 
+Kgm-2 so, in terms of procedure and coding, it is quit similar to 
+landEenergyReader function. In fact, I mostly copied and pasted different
+parts of landEnrgyReader with some modifications to account for both 
+frozen and liquid water data that come from two differetn files. Also, 
+to make the code to read the data at the same time from two different 
+directories I made some changes to the self.filex in the initiating 
+function of the enregyice class. I chnaged the self.filex and self.path 
+to self.filexWater, self.filexIce, self.pathWater, and self.pathIce.
+It still needs to be checked!!!
