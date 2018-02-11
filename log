@@ -249,3 +249,10 @@ directories I made some changes to the self.filex in the initiating
 function of the enregyice class. I chnaged the self.filex and self.path 
 to self.filexWater, self.filexIce, self.pathWater, and self.pathIce.
 It still needs to be checked!!!
+
+Feb 11, 2018
+
+I added the montecarlo section of the couldReader function and it ran 
+just fine. I still need to plot the outputs of the code for both parts
+to make sure data look right. Also, I have add the storing part of the 
+code.

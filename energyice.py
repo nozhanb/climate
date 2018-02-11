@@ -160,7 +160,8 @@ class EnergyIce:
             ff1.close()
         return numpy.array(totalIceFraction)
 
-
+###############################################################################
+###############################################################################
 
     def energyReader(self,save = True, outputName = None):
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
@@ -214,7 +215,8 @@ class EnergyIce:
             ff2.close()
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
-
+###############################################################################
+###############################################################################
 
     def landEnergyReader(self, fName = 'totalLandMask', save = True, highLowAndMonth = None,\
                         geoLevel = None, outputName = None):
@@ -286,6 +288,9 @@ class EnergyIce:
             ff2.close()
         return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
 
+
+###############################################################################
+###############################################################################
 
 
     def geoPoReader(self, fName = 'totalLandMask', geoLevel = 0, save = True, \
@@ -377,7 +382,8 @@ class EnergyIce:
             elif montecarlo == False:
                 return geoPoAverage/float(len(self.yearRange))
 
-
+###############################################################################
+###############################################################################
 
     def cloudReader(self, fName = 'totalLandMask', waterIce = 'water', save = True, \
                     montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
@@ -402,8 +408,9 @@ class EnergyIce:
             fastIce = numpy.array(loaded_file_ice.variables['VITCFCW_GDS0_EATM_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             fastWater = numpy.ma.masked_where(maskOfEurope,fastWater).filled(0.)
             fastIce = numpy.ma.masked_where(maskOfEurope,fastIce).filled(0.)
-            waterAverage = waterAverage + numpy.sum(fastWater,0)
-            iceAverage = iceAverage + numpy.sum(fastIce,0)
+            waterAverage = waterAverage + fastWater
+            iceAverage = iceAverage + fastIce
+            cloudAverage = waterAverage + iceAverage
             localIndexWater = numpy.array([])
             localIndexIce = numpy.array([])
             for i in range(self.finalLat.size):
@@ -423,10 +430,65 @@ class EnergyIce:
             totalFinalIndexIce = numpy.append(totalFinalIndexIce,numpy.sum(localIndexIce))
             totalFinalIndex = totalFinalIndexWater + totalFinalIndexIce
             print fileNameIce[12:16], '-----> DONE!!!'
-        print totalFinalIndex
+#            print totalFinalIndex
         print 'Average index (Kgm-2)----->', numpy.average(totalFinalIndex)
+        
+        if montecarlo == True:
+            import random
+            yArray = numpy.arange(1979,2015)
+            cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalWaterAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalIceAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalFilesWater = []
+            totalFilesIce = []
+            for totalYear in numpy.arange(1979,2015):
+                totalFilesWater.append('LiqWatPath.'+str(totalYear)+'.nc')
+                totalFilesIce.append('FrozWatPath.'+str(totalYear)+'.nc')
+            for totalNameWater, totalNameIce in zip(totalFilesWater, totalFilesIce):
+                loaded_file_water = netCDF4.Dataset(self.pathWater+totalNameWater)
+                loaded_file_ice = netCDF4.Dataset(self.pathIce+totalNameIce)
+                totalFastWater = numpy.array(loaded_file_water.variables['VITCLCW_GDS0_EATM_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                totalFastIce = numpy.array(loaded_file_ice.variables['VITCFCW_GDS0_EATM_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                totalFastWater = numpy.ma.masked_where(maskOfEurope,totalFastWater).filled(0.)
+                totalFastIce = numpy.ma.masked_where(maskOfEurope,totalFastIce).filled(0.)
+                totalWaterAverage = totalWaterAverage + totalFastWater
+                totalIceAverage = totalIceAverage + totalFastIce
+                totalCloudAverage = totalWaterAverage + totalIceAverage
+            
+            subtractedCloud = cloudAverage - totalCloudAverage
+            
+            for i in range(0,counts):
+                print "Monte Carlo cycle: ", i
+                mcFilesWater = []
+                mcFilesIce = []
+                years = random.sample(yArray,len(self.filexWater))
+                mcWaterAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                mcIceAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                for ycount in years:
+                    mcFilesWater.append('LiqWatPath.'+str(ycount)+'.nc')
+                    mcFilesIce.append('FrozWatPath.'+str(ycount)+'.nc')
+                for i,j in zip(mcFilesWater,mcFilesIce):
+                    loaded_file_water = netCDF4.Dataset(self.pathWater+i)
+                    loaded_file_ice = netCDF4.Dataset(self.pathIce+j)
+                    mcFastWater = numpy.array(loaded_file_water.variables['VITCLCW_GDS0_EATM_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcFastIce = numpy.array(loaded_file_ice.variables['VITCFCW_GDS0_EATM_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcFastWater = numpy.ma.masked_where(maskOfEurope,mcFastWater).filled(0.)
+                    mcFastIce = numpy.ma.masked_where(maskOfEurope,mcFastIce).filled(0.)
+                    mcWaterAverage = mcWaterAverage + mcFastWater
+                    mcIceAverage = mcIceAverage + mcFastIce
+                    mcCloudAverage = mcWaterAverage + mcIceAverage
+                
+                subtractedMc = mcCloudAverage - totalCloudAverage
+                cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedCloud),numpy.absolute(subtractedMc)).astype(float)
+            finalDensity = cellDensity/counts        
 
-
+        if montecarlo == False:
+            return cloudAverage/float(len(self.yearRange))
+        elif montecarlo == True:
+            return cloudAverage/float(len(self.yearRange)), finalDensity
+            
+###############################################################################
+###############################################################################
 
     def montecarlo(self, maskName = 'totalLandMask', content = 'DivQ', \
                     counts = 100, indexSig = False, save = True, \
@@ -579,7 +641,8 @@ class EnergyIce:
         elif indexSig == False:
             return finalDensity
             
-            
+###############################################################################
+###############################################################################
 
 def smoothing(inArray, length = 7, mode = 'wrap'):
     """This function applies a smoothing technique to a given region."""
@@ -596,8 +659,8 @@ def smoothing(inArray, length = 7, mode = 'wrap'):
     
     return filt
 
-
-
+###############################################################################
+###############################################################################
 
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
      plotType = 'contourf', montecarlo = False, store = False, name = None):
