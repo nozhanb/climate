@@ -256,3 +256,12 @@ I added the montecarlo section of the couldReader function and it ran
 just fine. I still need to plot the outputs of the code for both parts
 to make sure data look right. Also, I have add the storing part of the 
 code.
+
+Feb 13, 2018
+
+I added an if statement to the cloudReader function in energyice.py. The 
+problem was that bothe "LiqWatPath.2013.nc" and "FrozWatPath.2013.nc" have 
+different internal structure. The months are separated unlike the other files
+and made the code to crash so I fixed it by adding the if statement both in
+the beginning of the function (when it tries to find the climatological average)
+and in the montecarlo part.
