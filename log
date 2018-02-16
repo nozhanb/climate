@@ -265,3 +265,13 @@ different internal structure. The months are separated unlike the other files
 and made the code to crash so I fixed it by adding the if statement both in
 the beginning of the function (when it tries to find the climatological average)
 and in the montecarlo part.
+
+Feb 16, 2018
+
+I added a new function called "fluxReader" to the energyice.py. It will 
+read in the values of the energy budget of the surface in terms of incoming 
+and outgoing radiation and heat (short, long, sensible, and latent). A good 
+feature of this function is that user can choose any of the fluxes (one of them 
+two or all of them). It will also run the Monte-Carlo simulation. However, it is 
+slow (since it is reading 4 files at the same time). So it has the potential to 
+become faster. Also, it needs to be tested!!!
