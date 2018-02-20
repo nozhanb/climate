@@ -275,3 +275,10 @@ feature of this function is that user can choose any of the fluxes (one of them
 two or all of them). It will also run the Monte-Carlo simulation. However, it is 
 slow (since it is reading 4 files at the same time). So it has the potential to 
 become faster. Also, it needs to be tested!!!
+
+Feb 20, 2018
+
+I fixed a bug in the flux function. I had to put the energy budget lines inside 
+the loops (after the year before the filex2) in all loops. So it was producing a 
+very big number. I still need to make sure that things are working fine!!!
+
