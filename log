@@ -282,3 +282,8 @@ I fixed a bug in the flux function. I had to put the energy budget lines inside
 the loops (after the year before the filex2) in all loops. So it was producing a 
 very big number. I still need to make sure that things are working fine!!!
 
+Feb 22, 2018
+
+I added the seatempReader() function. It reads the sea surface temperature values.
+It works fine, though, I have to check it again to make sure. There is not much to 
+write about it. It does what the other functions do (e.g. temperatureReader).
