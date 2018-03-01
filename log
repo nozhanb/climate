@@ -287,3 +287,8 @@ Feb 22, 2018
 I added the seatempReader() function. It reads the sea surface temperature values.
 It works fine, though, I have to check it again to make sure. There is not much to 
 write about it. It does what the other functions do (e.g. temperatureReader).
+
+Mar 01, 2018
+
+I made a few minor changes to the sicReader function. Now it can produce an average
+map other than just the index. Also, I made some changes to the saving part.

@@ -69,6 +69,7 @@ class EnergyIce:
             self.yearRange = year
         
         if self.fileContent  == 'SIC':
+            self.path = './data/sic/'
             for years in self.yearRange:
                 self.filex.append('SIC.'+str(years)+'.nc')
         elif self.fileContent == 'DivQ':
@@ -109,31 +110,38 @@ class EnergyIce:
 ###############################################################################
 
 
-    def sicReader(self,save = True, outputName = None, landMask = False):
+    def sicReader(self,save = True, outputName = None, landMask = False, highLowAndMonth=None):
         ''' Something needs to be written here.'''
         self.output_dic = collections.OrderedDict() #   Notice that it MUST be an Ordered Dictionary!!!
         totalIceFraction = numpy.array([])
-        path = './sic/'
+        iceAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         for fileName in self.filex:
-            for monthNo in self.month:
-                printName = fileName+'_'+str(monthNo)
-                loaded_file = netCDF4.Dataset(path+fileName)     #   Notice the following arrays are MASKED arrays!!!
-                fastLat = numpy.ma.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
-                fastLon = numpy.ma.array(loaded_file.variables['g0_lon_2'][self.finalLon[0]:self.finalLon[-1]+1])
-                cosValue = numpy.cos(fastLat*(3.14/180.))
-                cosValue = cosValue.reshape(self.finalLat.size, 1)
-                maskedIceFraction = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(monthNo),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])*cosValue
-                #   There are some cells in which the value of ice fraction is e+19 (i.e. regions covered with land) so we set them to zero.
-                if landMask == True:
-                    landMa = numpy.ma.masked_less(maskedIceFraction,1.1).filled(0.)
-
-                iceFractionMaskedWithZero = numpy.ma.masked_greater(maskedIceFraction,1.1).filled(0.)
-                numerator = numpy.sum(numpy.sum(iceFractionMaskedWithZero,0))
-                denominator = fastLon.size*numpy.sum(cosValue,0)
-                iceIndex = numerator/denominator
-                self.output_dic[fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'] = iceIndex
-                totalIceFraction = numpy.append(totalIceFraction,iceIndex)
-                print printName, '------> DONE!!!'
+            printName = fileName+'_'+str(self.month[0])
+            loaded_file = netCDF4.Dataset(self.path+fileName)     #   Notice the following arrays are MASKED arrays!!!
+            fastLat = numpy.ma.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
+            cosValue = numpy.cos(fastLat*(3.14/180.))
+            cosValue = cosValue.reshape(self.finalLat.size, 1)
+            fastIce = numpy.array(loaded_file.variables['CI_GDS0_SFC_123'][int(self.month[0]),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            fastIce = numpy.ma.masked_greater(fastIce,1.1).filled(0.)
+            #   There are some cells in which the value of ice fraction is e+19 (i.e. regions covered with land) so we set them to zero.
+            if landMask == True:
+                landMa = numpy.ma.masked_less(fastIce,1.1).filled(0.)
+                
+            iceAverage = iceAverage + fastIce
+#            print fileName[4:8], '-----> DONE!!!'            
+            numerator = numpy.sum(numpy.sum(fastIce*cosValue,0))
+            denominator = self.finalLon.size*numpy.sum(cosValue)
+            iceIndex = numerator/denominator
+#            iceFractionMaskedWithZero = numpy.ma.masked_greater(fastIce,1.1).filled(0.)
+#==============================================================================
+#             numerator = numpy.sum(numpy.sum(iceFractionMaskedWithZero,0))
+#             denominator = self.finalLon.size*numpy.sum(cosValue)
+#             iceIndex = numerator/denominator
+#==============================================================================
+#            self.output_dic[fileName+'_'+str(monthNo)+'_'+'('+str(self.lat5[0])+','+str(self.lat5[1])+')'+'_'+'('+str(self.lon5[0])+','+str(self.lon5[1])+')'] = iceIndex
+            totalIceFraction = numpy.append(totalIceFraction,iceIndex)
+            print printName, '------> DONE!!!'
+        iceAverage=iceAverage/float(len(self.yearRange))
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -152,22 +160,41 @@ class EnergyIce:
             elif self.lon5[1] >= 0.0:
                 lonSec = 'E'
             if outputName == None:
-                nameToWrite = 'iceFraction'
-            elif outputName is not None:
-                nameToWrite = outputName
+                nameToWrite1 = self.fileContent+'Index'
+                nameToWrite2 = self.fileContent+'Average'
+            
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
             
             if landMask == True:
-                days = calendar.monthrange(int(fileName[4:8]),int(monthNo))[1]
-                ff2 = open('landMask'+str(days)+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
+                days = calendar.monthrange(int(fileName[4:8]),int(self.month))[1]
+                ff3 = open('landMask'+str(days)+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
             latSec,'w')
-                landMa.tofile(ff2,",")
-                ff2.close()
-            ff1 = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(monthNo)][0:3]+'_'\
-            +str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
-            latSec,'w')
+                landMa.tofile(ff3,",")
+                ff3.close()
+                
+            if len(self.filex) == 1:
+                ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+            elif len(self.filex) > 1:
+                ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+
             ff1.write(json.dumps(totalIceFraction.tolist()))
+            ff2.write(json.dumps((iceAverage.tolist())))
             ff1.close()
-        return numpy.array(totalIceFraction)
+            ff2.close()
+        return iceAverage, totalIceFraction
+                
+                
+#==============================================================================
+#             ff1 = open(nameToWrite+'_'+str(self.year1)+'_'+str(self.year2)+'_'+calendar.month_name[int(monthNo)][0:3]+'_'\
+#             +str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+\
+#             latSec,'w')
+#             ff1.write(json.dumps(totalIceFraction.tolist()))
+#==============================================================================
 
 ###############################################################################
 ###############################################################################
@@ -598,28 +625,36 @@ class EnergyIce:
 
 
 
+
 ###############################################################################
 ###############################################################################
 
-    def fluxReader(self, fName = 'totalLandMask', fluxType = ['swt','lwt','ssh','slh'], save = True, \
+    def fluxReader(self, fName = 'totalLandMask', fluxType = ['swsd','lwsd','ssh','slh'], save = True, \
                     montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
         
         filex2 = []
-        fluxPair = {'swt':'TSR_GDS0_SFC_120','lwt':'TTR_GDS0_SFC_120','ssh':'SSHF_GDS0_SFC_120','slh':'SLHF_GDS0_SFC_120'}
+        fluxPair = {'swsd':'SSRD_GDS0_SFC_120','lwsd':'STRD_GDS0_SFC_120','ssh':'SSHF_GDS0_SFC_120','slh':'SLHF_GDS0_SFC_120'}
         fluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         for ftype in fluxType:
             filex2.append(ftype)
         for year in self.yearRange:
+#            print '-------->',type(year), type(self.month[0])
             energyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            days = calendar.monthrange(int(year),int(self.month[0]))[1]
+            secToDays = days*3600.
             for fluxName in filex2:
                 loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                 fastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                energyBudget = energyBudget + fastFlux
+                energyBudget = energyBudget + fastFlux/secToDays
             fluxAverage = fluxAverage + energyBudget
-#            print 'This is total enegy budget for 4-year:', energyBudget[0,0]
+#==============================================================================
+#             print 'This is total enegy budget for 4-year:', energyBudget[90,90]
+#==============================================================================
             print year, '-----> DONE!!!'
         fluxAverage=fluxAverage/float(len(self.yearRange))
-#        print 'This is the four-year average: ', fluxAverage[0,0]
+#==============================================================================
+#         print 'This is the four-year average: ', fluxAverage[90,90]
+#==============================================================================
         
         if montecarlo == True:
             import random
@@ -628,14 +663,20 @@ class EnergyIce:
             totalFluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for year in yArray:
                 totalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                days = calendar.monthrange(int(year),int(self.month[0]))[1]
+                secToDays = days*3600.
                 for fluxName in filex2:
                     loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                     totalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                    totalEnergyBudget = totalEnergyBudget + totalFastFlux
+                    totalEnergyBudget = totalEnergyBudget + totalFastFlux/secToDays
                 totalFluxAverage = totalFluxAverage + totalEnergyBudget
-#                print 'This is the totalEnergyBudget for 36-year: ', totalEnergyBudget[0,0]
+#==============================================================================
+#                 print 'This is the totalEnergyBudget for 36-year: ', totalEnergyBudget[90,90]
+#==============================================================================
             totalFluxAverage=totalFluxAverage/float(len(yArray))
-#            print 'This is the 36 years average: ', totalFluxAverage[0,0]
+#==============================================================================
+#             print 'This is the 36 years average: ', totalFluxAverage[90,90]
+#==============================================================================
             subtractedFlux = fluxAverage - totalFluxAverage
             
             for i in range(0,counts):
@@ -644,14 +685,20 @@ class EnergyIce:
                 mcFluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
                 for year in years:  #   Notice that year and years are different!!!
                     mcTotalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                    days = calendar.monthrange(int(year),int(self.month[0]))[1]
+                    secToDays = days*3600.
                     for fluxName in filex2:
                         loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                         mcTotalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                        mcTotalEnergyBudget = mcTotalEnergyBudget + mcTotalFastFlux
+                        mcTotalEnergyBudget = mcTotalEnergyBudget + mcTotalFastFlux/secToDays
                     mcFluxAverage = mcFluxAverage + mcTotalEnergyBudget
-#                    print 'This is the totalEnergyBudget for MonteCarlo-year: ', mcTotalEnergyBudget[0,0]
+#==============================================================================
+#                     print 'This is the totalEnergyBudget for MonteCarlo-year: ', mcTotalEnergyBudget[90,90]
+#==============================================================================
                 mcFluxAverage = mcFluxAverage/float(len(self.yearRange))
-#                print 'This is the montecarlo average: ', mcFluxAverage[0,0]
+#==============================================================================
+#                 print 'This is the montecarlo average: ', mcFluxAverage[90,90]
+#==============================================================================
                 mcSubtractedFlux = mcFluxAverage - totalFluxAverage
                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedFlux),numpy.absolute(mcSubtractedFlux)).astype(float)
             finalDensity = cellDensity/counts
