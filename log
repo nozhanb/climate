@@ -292,3 +292,13 @@ Mar 01, 2018
 
 I made a few minor changes to the sicReader function. Now it can produce an average
 map other than just the index. Also, I made some changes to the saving part.
+
+Mar 11, 2018
+
+I made some changes to the "energyReader" function in the energyice.py. This function 
+was the one that would read energy for an entire given region unlike its counter 
+function (landEnergyReader) that would only read energy over land. By making the changes
+now it can perform the montecarlo and smoothing (for dry static; DivD). The user is no 
+longer required to use the montecarlo function if he/she wants to read energy for the 
+entire region and not just over land. I still have not tested the smoothing feature so 
+it may have some bugs in it!!!

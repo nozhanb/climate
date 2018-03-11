@@ -73,12 +73,12 @@ class EnergyIce:
             for years in self.yearRange:
                 self.filex.append('SIC.'+str(years)+'.nc')
         elif self.fileContent == 'DivQ':
-            self.path = './dmDivQ_NH/'
+            self.path = './data/energy/latent/dmDivQ_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivQ.'+str(years)+'.'+months+'.nc')
         elif self.fileContent == 'DivD':
-            self.path = './dmDivD_NH/'
+            self.path = './data/energy/static/dmDivD_NH/'
             for years in self.yearRange:
                 for months in self.month:
                     self.filex.append('DivD.'+str(years)+'.'+str(months)+'.nc')
@@ -87,13 +87,17 @@ class EnergyIce:
             for years in self.yearRange:
                 self.filex.append('Z.'+str(years)+'.nc')
         elif self.fileContent == 'Temperature':
-            self.path = './data/sat/'
+            self.path = './data/2mTemp/'
             for years in self.yearRange:
                 self.filex.append('SAT.'+str(years)+'.nc')
         elif self.fileContent == 'Seatemp':
             self.path = './data/seaTemp/'
             for years in self.yearRange:
                 self.filex.append('SST.'+str(years)+'.nc')
+        elif self.fileContent == 'Seapressure':
+            self.path = './data/seaPress/'
+            for years in self.yearRange:
+                self.filex.append('SP.'+str(years)+'.nc')
         elif self.fileContent == 'Cloud':
             self.pathWater = './data/liqWat/'
             for years in self.yearRange:
@@ -142,6 +146,7 @@ class EnergyIce:
             totalIceFraction = numpy.append(totalIceFraction,iceIndex)
             print printName, '------> DONE!!!'
         iceAverage=iceAverage/float(len(self.yearRange))
+
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -199,10 +204,11 @@ class EnergyIce:
 ###############################################################################
 ###############################################################################
 
-    def energyReader(self,save = True, outputName = None):
+    def energyReader(self,montecarlo=False,counts=10, smoothing=False, length=7,\
+                        mode = 'wrap',save = True, outputName = None,highLowAndMonth = None):
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         totalFinalIndex = numpy.array([])
-
+            
         for fileName in self.filex:
             loaded_file = netCDF4.Dataset(self.path+fileName)
             days = calendar.monthrange(int(fileName[5:9]),int(fileName[10:12]))[1]
@@ -217,6 +223,54 @@ class EnergyIce:
             totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
             print fileName[5:12], '-----> DONE!!!'
         print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
+        EnergyAverage=EnergyAverage/float(len(self.yearRange))
+        
+        if smoothing == True:
+            from scipy.ndimage import uniform_filter1d
+            filt = numpy.zeros((101,720))
+            fastLat = numpy.arange(self.lat5[1],self.lat5[0]-0.5,-0.5)
+            cosValue = numpy.cos(fastLat*(3.14/180.))
+            cosValue = cosValue.reshape(fastLat.size,1)
+            numerator = uniform_filter1d((EnergyAverage*cosValue),axis=0,size=length,origin=0,mode = mode)
+            denominator = numerator.reshape(EnergyAverage.shape)/cosValue
+            for ilat in range(len(fastLat)):
+                lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))
+                filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+            
+        if montecarlo == True:
+            import random
+            yArray = numpy.arange(1979,2015)
+            cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalEnergy = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalFiles = []
+            for totalYear in numpy.arange(1979,2015):
+                totalFiles.append(self.fileContent+'.'+str(totalYear)+'.'+str(self.month[0])+'.nc')
+            for totalName in totalFiles:
+                loaded_file = netCDF4.Dataset(self.path+totalName)
+                totalFastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                totalEnergy = totalEnergy + numpy.sum(totalFastEnergy,0)/days
+            totalEnergy = totalEnergy/float(len(yArray))
+            
+            subtractedEnergy = EnergyAverage - totalEnergy
+        
+            for i in range(0,counts):
+                print "Monte Carlo cycle: ", i
+                mcFiles = []
+                years = random.sample(yArray,len(self.filex))
+                mcEnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                for ycount in years:
+                    mcFiles.append(self.fileContent+'.'+str(ycount)+'.'+str(self.month[0])+'.nc')
+                for j in mcFiles:
+                    loaded_file = netCDF4.Dataset(self.path+j)
+                    mcfastEnergy = numpy.array(loaded_file.variables['Divergence'][:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcEnergyAverage = mcEnergyAverage + numpy.sum(mcfastEnergy,0)/days
+                mcEnergyAverage=mcEnergyAverage/float(len(self.yearRange))
+    
+                subtractedMc = mcEnergyAverage - totalEnergy
+
+                cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedEnergy),numpy.absolute(subtractedMc)).astype(float)
+            finalDensity = cellDensity/counts
+            
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -237,25 +291,53 @@ class EnergyIce:
             if outputName == None:
                 nameToWrite1 = self.fileContent+'Index'
                 nameToWrite2 = self.fileContent+'Average'
+                nameToWrite3 = self.fileContent+'Montecarlo'
+                nameToWrite4 = self.fileContent+'Smoothed'
+            
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
                 
             if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                if montecarlo == True:
+                    ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    finalDensity.tofile(ff3,sep=",")
+                    ff3.close()
+                if smoothing == True:
+                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    filt.tofile(ff4,sep=",")
+                    ff4.close()
             elif len(self.filex) > 1:
-                ff1 = open(nameToWrite1+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                if montecarlo == True:
+                    ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    finalDensity.tofile(ff3,sep=",")
+                    ff3.close()
+                if smoothing == True:
+                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    filt.tofile(ff4,sep=",")
+                    ff4.close()
 
             ff1.write(json.dumps(totalFinalIndex.tolist()))
-            ff2.write(json.dumps((EnergyAverage/float(len(self.yearRange))).tolist()))
+            ff2.write(json.dumps((EnergyAverage.tolist())))
             ff1.close()
             ff2.close()
-        return EnergyAverage/float(len(self.yearRange)), totalFinalIndex
+
+        if montecarlo == True:
+            return EnergyAverage, totalFinalIndex, finalDensity
+        elif montecarlo == False:
+            return EnergyAverage, totalFinalIndex
+        
 
 ###############################################################################
 ###############################################################################
 
     def landEnergyReader(self, fName = 'totalLandMask', save = True, highLowAndMonth = None,\
-                        geoLevel = None, outputName = None):
+                    outputName = None):
         totalFinalIndex = numpy.array([])
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         landCoor2 = numpy.fromfile(fName,float,-1,",").reshape(121,720)
@@ -625,6 +707,105 @@ class EnergyIce:
 
 
 
+###############################################################################
+###############################################################################
+
+
+
+    def seapressureReader(self, fName = 'totalLandMask', save = True, montecarlo=False,\
+                        counts=None, highLowAndMonth = None, outputName = None):
+
+        seaPressAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+
+        for fileName in self.filex:
+            loaded_file = netCDF4.Dataset(self.path+fileName)
+            fastSeaPress = numpy.array(loaded_file.variables['SP_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            seaPressAverage = seaPressAverage + fastSeaPress/100.
+            print fileName[3:8], '-----> DONE!!!'            
+        seaPressAverage=seaPressAverage/float(len(self.yearRange))
+            
+        if montecarlo == True:
+            import random
+            yArray = numpy.arange(1979,2015)
+            cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalSeaPress = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalFiles = []
+            for totalYear in numpy.arange(1979,2015):
+                totalFiles.append('SP.'+str(totalYear)+'.nc')
+            for totalName in totalFiles:
+                loaded_file = netCDF4.Dataset(self.path+totalName)
+                totalFastSeaPress = numpy.array(loaded_file.variables['SP_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                totalSeaPress = totalSeaPress + totalFastSeaPress/100.
+            totalSeaPress = totalSeaPress/float(len(yArray))
+            
+            subtractedTemp = seaPressAverage - totalSeaPress
+            
+            for i in range(0,counts):
+                print "Monte Carlo cycle: ", i
+                mcFiles = []
+                years = random.sample(yArray,len(self.filex))
+                mcSeaPressAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                for ycount in years:
+                    mcFiles.append('SP.'+str(ycount)+'.nc')
+                for j in mcFiles:
+                    loaded_file = netCDF4.Dataset(self.path+j)
+                    mcfastSeaPress = numpy.array(loaded_file.variables['SP_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcSeaPressAverage = mcSeaPressAverage + mcfastSeaPress/100.
+                mcSeaPressAverage = mcSeaPressAverage/float(len(self.yearRange))    
+                subtractedMc = mcSeaPressAverage - totalSeaPress
+                cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedTemp),numpy.absolute(subtractedMc)).astype(float)
+            finalDensity = cellDensity/counts
+                    
+        if save == True:
+            if self.lat5[0] < 0.0:
+                latFir = 'S'
+            elif self.lat5[0] >= 0.0:
+                latFir = 'N'
+            if self.lat5[1] < 0.0:
+                latSec = 'S'
+            elif self.lat5[1] >= 0.0:
+                latSec = 'N'
+            if self.lon5[0] < 0.0:
+                lonFir = 'W'
+            elif self.lon5[0] >= 0.0:
+                lonFir = 'E'
+            if self.lon5[1] < 0.0:
+                lonSec = 'W'
+            elif self.lon5[1] >= 0.0:
+                lonSec = 'E'
+            if outputName == None:
+                nameToWrite2 = self.fileContent+'Average'
+                nameToWrite3 = self.fileContent+'Montecarlo'   
+                
+            if highLowAndMonth is None:
+                baseM = '---'
+            elif highLowAndMonth is not None:
+                baseM = highLowAndMonth
+                
+            if len(self.filex) == 1:
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                if montecarlo == True:
+                    ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    finalDensity.tofile(ff3,sep=",")
+                    ff3.close()
+            elif len(self.filex) > 1:
+                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                if montecarlo == True:
+                    ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    finalDensity.tofile(ff3,sep=",")
+                    ff3.close()
+            
+            ff2.write(json.dumps((seaPressAverage).tolist()))
+            ff2.close()
+        if montecarlo == True:
+            return seaPressAverage, finalDensity
+        elif montecarlo == False:
+            return seaPressAverage
+
+
+
+
+
 
 ###############################################################################
 ###############################################################################
@@ -638,10 +819,9 @@ class EnergyIce:
         for ftype in fluxType:
             filex2.append(ftype)
         for year in self.yearRange:
-#            print '-------->',type(year), type(self.month[0])
             energyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
             days = calendar.monthrange(int(year),int(self.month[0]))[1]
-            secToDays = days*3600.
+            secToDays = 86400.
             for fluxName in filex2:
                 loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                 fastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
@@ -664,7 +844,7 @@ class EnergyIce:
             for year in yArray:
                 totalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
                 days = calendar.monthrange(int(year),int(self.month[0]))[1]
-                secToDays = days*3600.
+                secToDays = 86400.
                 for fluxName in filex2:
                     loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                     totalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
@@ -686,7 +866,7 @@ class EnergyIce:
                 for year in years:  #   Notice that year and years are different!!!
                     mcTotalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
                     days = calendar.monthrange(int(year),int(self.month[0]))[1]
-                    secToDays = days*3600.
+                    secToDays = 86400.
                     for fluxName in filex2:
                         loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                         mcTotalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
