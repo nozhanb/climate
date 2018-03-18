@@ -204,8 +204,9 @@ class EnergyIce:
 ###############################################################################
 ###############################################################################
 
-    def energyReader(self,montecarlo=False,counts=10, smoothing=False, length=7,\
-                        mode = 'wrap',save = True, outputName = None,highLowAndMonth = None):
+    def energyReader(self,montecarlo=False,counts=None, smoothing=False, length=None,\
+                        smoothingCount=None,mode = 'wrap',save = True, outputName = None,\
+                        highLowAndMonth = None):
         EnergyAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         totalFinalIndex = numpy.array([])
             
@@ -222,20 +223,9 @@ class EnergyIce:
             finalIndex = numerator/denominator
             totalFinalIndex = numpy.append(totalFinalIndex,finalIndex)
             print fileName[5:12], '-----> DONE!!!'
-        print 'Average index (Wm-2)----->', numpy.average(totalFinalIndex)
+        print 'Average index (Wm-2)-----> ', numpy.average(totalFinalIndex)
         EnergyAverage=EnergyAverage/float(len(self.yearRange))
-        
-        if smoothing == True:
-            from scipy.ndimage import uniform_filter1d
-            filt = numpy.zeros((101,720))
-            fastLat = numpy.arange(self.lat5[1],self.lat5[0]-0.5,-0.5)
-            cosValue = numpy.cos(fastLat*(3.14/180.))
-            cosValue = cosValue.reshape(fastLat.size,1)
-            numerator = uniform_filter1d((EnergyAverage*cosValue),axis=0,size=length,origin=0,mode = mode)
-            denominator = numerator.reshape(EnergyAverage.shape)/cosValue
-            for ilat in range(len(fastLat)):
-                lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))
-                filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+    
             
         if montecarlo == True:
             import random
@@ -270,7 +260,36 @@ class EnergyIce:
 
                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedEnergy),numpy.absolute(subtractedMc)).astype(float)
             finalDensity = cellDensity/counts
-            
+
+
+        if smoothing == True:
+            from scipy.ndimage import uniform_filter1d
+            fastLat = numpy.arange(self.lat5[1],self.lat5[0]-0.5,-0.5)
+            filt = numpy.zeros((EnergyAverage.shape))#(101,720)
+            densityFilt = numpy.zeros((EnergyAverage.shape))
+            cosValue = numpy.cos(fastLat*(3.14/180.))
+            cosValue = cosValue.reshape(fastLat.size,1)
+            theArea = EnergyAverage
+            count = 0
+            if montecarlo==True:
+                theDensity = finalDensity
+                while count < smoothingCount:
+                    densityNumerator = uniform_filter1d((theDensity*cosValue),axis=0,size=length,origin=0,mode=mode)
+                    densityDenominator = densityNumerator.reshape(densityNumerator.shape)/cosValue
+                    for ilat in range(len(fastLat)):
+                        lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
+                        densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=lonStep,origin=0,mode = mode)
+                    theDensity = densityFilt
+                    count += 1
+            while count < smoothingCount:
+                numerator = uniform_filter1d((theArea*cosValue),axis=0,size=length,origin=0,mode=mode)
+                denominator = numerator.reshape(theArea.shape)/cosValue    #   numerator.reshape(theArea.shape)/cosValue                
+                for ilat in range(len(fastLat)):
+                    lonStep = int(min([720.,(length*2.)/cosValue[ilat]]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
+                    filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
+                theArea = filt
+                count += 1
+
         if save == True:
             if self.lat5[0] < 0.0:
                 latFir = 'S'
@@ -293,24 +312,14 @@ class EnergyIce:
                 nameToWrite2 = self.fileContent+'Average'
                 nameToWrite3 = self.fileContent+'Montecarlo'
                 nameToWrite4 = self.fileContent+'Smoothed'
+                nameToWrite5 = self.fileContent+'SmoothedMontecarlo'
             
             if highLowAndMonth is None:
                 baseM = '---'
             elif highLowAndMonth is not None:
                 baseM = highLowAndMonth
                 
-            if len(self.filex) == 1:
-                ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                if montecarlo == True:
-                    ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                    finalDensity.tofile(ff3,sep=",")
-                    ff3.close()
-                if smoothing == True:
-                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                    filt.tofile(ff4,sep=",")
-                    ff4.close()
-            elif len(self.filex) > 1:
+            if len(self.filex) > 1:
                 ff1 = open(nameToWrite1+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                 ff2 = open(nameToWrite2+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                 if montecarlo == True:
@@ -318,9 +327,18 @@ class EnergyIce:
                     finalDensity.tofile(ff3,sep=",")
                     ff3.close()
                 if smoothing == True:
-                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                    filt.tofile(ff4,sep=",")
-                    ff4.close()
+                    if montecarlo==True:
+                        ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                        ff5 = open(nameToWrite5+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                        filt.tofile(ff4,sep=",")
+                        densityFilt.tofile(ff5,sep=",")
+                        ff4.close()
+                        ff5.close()
+                    elif montecarlo==False:
+                        ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                        filt.tofile(ff4,sep=",")
+                        ff4.close()
+
 
             ff1.write(json.dumps(totalFinalIndex.tolist()))
             ff2.write(json.dumps((EnergyAverage.tolist())))
@@ -810,31 +828,35 @@ class EnergyIce:
 ###############################################################################
 ###############################################################################
 
-    def fluxReader(self, fName = 'totalLandMask', fluxType = ['swsd','lwsd','ssh','slh'], save = True, \
-                    montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
+    def fluxReader(self, fName = 'totalLandMask', fluxType = ['sws','lws','ssh','slh'],\
+                    save = True, montecarlo=False, counts=None, accumulation=False,\
+                    highLowAndMonth = None,outputName = None):
         
         filex2 = []
-        fluxPair = {'swsd':'SSRD_GDS0_SFC_120','lwsd':'STRD_GDS0_SFC_120','ssh':'SSHF_GDS0_SFC_120','slh':'SLHF_GDS0_SFC_120'}
+        fluxPair = {'sws':'SSR_GDS0_SFC_120','lws':'STR_GDS0_SFC_120','ssh':'SSHF_GDS0_SFC_120','slh':'SLHF_GDS0_SFC_120'}
         fluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         for ftype in fluxType:
             filex2.append(ftype)
         for year in self.yearRange:
             energyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-            days = calendar.monthrange(int(year),int(self.month[0]))[1]
+#            days = calendar.monthrange(int(year),int(self.month[0]))[1]
             secToDays = 86400.
             for fluxName in filex2:
-                loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
+                loaded_file = netCDF4.Dataset(self.path+'flux/'+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                 fastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                 energyBudget = energyBudget + fastFlux/secToDays
             fluxAverage = fluxAverage + energyBudget
-#==============================================================================
-#             print 'This is total enegy budget for 4-year:', energyBudget[90,90]
-#==============================================================================
             print year, '-----> DONE!!!'
         fluxAverage=fluxAverage/float(len(self.yearRange))
-#==============================================================================
-#         print 'This is the four-year average: ', fluxAverage[90,90]
-#==============================================================================
+
+        if accumulation == True:
+            totalAccuFlux = numpy.array([])
+            latAccuFlux = numpy.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
+            cosValue = numpy.cos(latAccuFlux*(3.14/180.)).reshape(latAccuFlux.size,1)
+            accuFluxNume = numpy.sum(numpy.sum(fluxAverage*cosValue,0))
+            accuFluxDeno = self.finalLon.size*numpy.sum(cosValue)
+            accuFluxRatio = accuFluxNume/accuFluxDeno
+            totalAccuFlux = numpy.append(totalAccuFlux,accuFluxRatio)
         
         if montecarlo == True:
             import random
@@ -843,20 +865,14 @@ class EnergyIce:
             totalFluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for year in yArray:
                 totalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-                days = calendar.monthrange(int(year),int(self.month[0]))[1]
+#                days = calendar.monthrange(int(year),int(self.month[0]))[1]
                 secToDays = 86400.
                 for fluxName in filex2:
-                    loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
+                    loaded_file = netCDF4.Dataset(self.path+'flux/'+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                     totalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                     totalEnergyBudget = totalEnergyBudget + totalFastFlux/secToDays
                 totalFluxAverage = totalFluxAverage + totalEnergyBudget
-#==============================================================================
-#                 print 'This is the totalEnergyBudget for 36-year: ', totalEnergyBudget[90,90]
-#==============================================================================
             totalFluxAverage=totalFluxAverage/float(len(yArray))
-#==============================================================================
-#             print 'This is the 36 years average: ', totalFluxAverage[90,90]
-#==============================================================================
             subtractedFlux = fluxAverage - totalFluxAverage
             
             for i in range(0,counts):
@@ -865,20 +881,14 @@ class EnergyIce:
                 mcFluxAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
                 for year in years:  #   Notice that year and years are different!!!
                     mcTotalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-                    days = calendar.monthrange(int(year),int(self.month[0]))[1]
+#                    days = calendar.monthrange(int(year),int(self.month[0]))[1]
                     secToDays = 86400.
                     for fluxName in filex2:
-                        loaded_file = netCDF4.Dataset(self.path+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
+                        loaded_file = netCDF4.Dataset(self.path+'flux/'+fluxName+'/'+fluxName.upper()+'.'+str(year)+'.nc')
                         mcTotalFastFlux = numpy.array(loaded_file.variables[fluxPair[fluxName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
                         mcTotalEnergyBudget = mcTotalEnergyBudget + mcTotalFastFlux/secToDays
                     mcFluxAverage = mcFluxAverage + mcTotalEnergyBudget
-#==============================================================================
-#                     print 'This is the totalEnergyBudget for MonteCarlo-year: ', mcTotalEnergyBudget[90,90]
-#==============================================================================
                 mcFluxAverage = mcFluxAverage/float(len(self.yearRange))
-#==============================================================================
-#                 print 'This is the montecarlo average: ', mcFluxAverage[90,90]
-#==============================================================================
                 mcSubtractedFlux = mcFluxAverage - totalFluxAverage
                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedFlux),numpy.absolute(mcSubtractedFlux)).astype(float)
             finalDensity = cellDensity/counts
@@ -904,6 +914,7 @@ class EnergyIce:
             if outputName == None:
                 nameToWrite2 = self.fileContent+'Average'
                 nameToWrite3 = self.fileContent+'Montecarlo'   
+                nameToWrite4 = self.fileContent+'Accumulated'
                 
             if highLowAndMonth is None:
                 baseM = '---'
@@ -922,6 +933,10 @@ class EnergyIce:
                     ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                     finalDensity.tofile(ff3,sep=",")
                     ff3.close()
+                if accumulation == True:
+                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    totalAccuFlux.tofile(ff4,sep=",")
+                    ff4.close()
             
             ff2.write(json.dumps((fluxAverage).tolist()))
             ff2.close()
@@ -1359,7 +1374,7 @@ def smoothing(inArray, length = 7, mode = 'wrap'):
 ###############################################################################
 
 def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
-     plotType = 'contourf', montecarlo = False, store = False, name = None):
+     plotType = 'contourf', montecarlo = False, save = False, name = None):
 
     lat1, lat2 = latitude
     latitude123 = numpy.arange(lat1,lat2+0.5,0.5)
@@ -1422,7 +1437,7 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
     map1.drawcountries()
     ax1.set_title(str(figTitle))
 #    ax1.annotate('Ave = 5.01', xy = (10,40), xytext=(40,76))
-    if store == True:
+    if save == True:
         plt.savefig('/home/nba035/plot/'+name+'.eps',dpi = 80, format = 'eps')
 
     plt.show()

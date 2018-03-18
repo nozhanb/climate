@@ -302,3 +302,14 @@ now it can perform the montecarlo and smoothing (for dry static; DivD). The user
 longer required to use the montecarlo function if he/she wants to read energy for the 
 entire region and not just over land. I still have not tested the smoothing feature so 
 it may have some bugs in it!!!
+
+March 18, 2018
+
+I added the smoothing function to the energyReader function in the energyice module.
+It workd fine for the latent energy and it can reproduce a similar result to what 
+we get when we directly plot the latent energy without smoothing. It seems to be 
+working just fine for the STATIC energy however since I have not plotted the static 
+energy data so I am not sure whether it is reproducing the right results or not but
+it seems like it is doing so. There is only one possible source of error and the is 
+the smoothing of the montecarlo results. I have to check that to see if it is pro-
+ducing the right results.
