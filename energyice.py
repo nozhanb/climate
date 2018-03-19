@@ -270,25 +270,37 @@ class EnergyIce:
             cosValue = numpy.cos(fastLat*(3.14/180.))
             cosValue = cosValue.reshape(fastLat.size,1)
             theArea = EnergyAverage
-            count = 0
+            count1 = 0
             if montecarlo==True:
+                count2 = 0
                 theDensity = finalDensity
-                while count < smoothingCount:
-                    densityNumerator = uniform_filter1d((theDensity*cosValue),axis=0,size=length,origin=0,mode=mode)
-                    densityDenominator = densityNumerator.reshape(densityNumerator.shape)/cosValue
+                while count2 < smoothingCount:
+#==============================================================================
+#                     densityNumerator = uniform_filter1d((theDensity*cosValue),axis=0,size=length,origin=0,mode=mode)
+#==============================================================================
+                    densityNumerator = uniform_filter1d(theDensity,axis=0,size=length,origin=0,mode=mode)
+#==============================================================================
+#                     densityDenominator = densityNumerator/cosValue
+#==============================================================================
+                    densityDenominator = densityNumerator
                     for ilat in range(len(fastLat)):
-                        lonStep = int(min([720.,(length*2.)/numpy.cos(fastLat[ilat]*(3.14/180.))]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
-                        densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=lonStep,origin=0,mode = mode)
+#==============================================================================
+#                         lonStep = int(min([720.,(length*2.)/cosValue[ilat]]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
+#==============================================================================
+#==============================================================================
+#                         densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=lonStep,origin=0,mode = mode)
+#==============================================================================
+                        densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=length,origin=0,mode = mode)
                     theDensity = densityFilt
-                    count += 1
-            while count < smoothingCount:
+                    count2 += 1
+            while count1 < smoothingCount:
                 numerator = uniform_filter1d((theArea*cosValue),axis=0,size=length,origin=0,mode=mode)
-                denominator = numerator.reshape(theArea.shape)/cosValue    #   numerator.reshape(theArea.shape)/cosValue                
+                denominator = numerator/cosValue    #   numerator.reshape(theArea.shape)/cosValue                
                 for ilat in range(len(fastLat)):
                     lonStep = int(min([720.,(length*2.)/cosValue[ilat]]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
                     filt[ilat:ilat+1,:] = uniform_filter1d(denominator[ilat,:],size=lonStep,origin=0,mode = mode)
                 theArea = filt
-                count += 1
+                count1 += 1
 
         if save == True:
             if self.lat5[0] < 0.0:

@@ -313,3 +313,11 @@ energy data so I am not sure whether it is reproducing the right results or not 
 it seems like it is doing so. There is only one possible source of error and the is 
 the smoothing of the montecarlo results. I have to check that to see if it is pro-
 ducing the right results.
+
+March 19, 2018
+
+I checked the smoothing function in the energyReader method and fixed a few bugs. 
+Now it can reproduce the significance leveles too. However, I still need to check 
+it with Rune to make sure. Specially for the Dry static energy since there is not 
+much of a significance levels in staic ones. But it reproduces the latent energy 
+anomalies very well!
