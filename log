@@ -321,3 +321,9 @@ Now it can reproduce the significance leveles too. However, I still need to chec
 it with Rune to make sure. Specially for the Dry static energy since there is not 
 much of a significance levels in staic ones. But it reproduces the latent energy 
 anomalies very well!
+
+March 21, 2018
+
+I made a small change to the fluxReader method in the energyice module. I moved the 
+accumulation function to a few lines further in the fluxReader(). Now it finds the 
+accumulation value of the anomaly matrix.

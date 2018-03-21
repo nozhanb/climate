@@ -860,15 +860,7 @@ class EnergyIce:
             fluxAverage = fluxAverage + energyBudget
             print year, '-----> DONE!!!'
         fluxAverage=fluxAverage/float(len(self.yearRange))
-
-        if accumulation == True:
-            totalAccuFlux = numpy.array([])
-            latAccuFlux = numpy.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
-            cosValue = numpy.cos(latAccuFlux*(3.14/180.)).reshape(latAccuFlux.size,1)
-            accuFluxNume = numpy.sum(numpy.sum(fluxAverage*cosValue,0))
-            accuFluxDeno = self.finalLon.size*numpy.sum(cosValue)
-            accuFluxRatio = accuFluxNume/accuFluxDeno
-            totalAccuFlux = numpy.append(totalAccuFlux,accuFluxRatio)
+        
         
         if montecarlo == True:
             import random
@@ -905,6 +897,16 @@ class EnergyIce:
                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedFlux),numpy.absolute(mcSubtractedFlux)).astype(float)
             finalDensity = cellDensity/counts
             
+
+        if accumulation == True:
+            totalAccuFlux = numpy.array([])
+            latAccuFlux = numpy.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
+            cosValue = numpy.cos(latAccuFlux*(3.14/180.)).reshape(latAccuFlux.size,1)
+            accuFluxNume = numpy.sum(numpy.sum(subtractedFlux*cosValue,0))
+            accuFluxDeno = self.finalLon.size*numpy.sum(cosValue)
+            accuFluxRatio = accuFluxNume/accuFluxDeno
+            totalAccuFlux = numpy.append(totalAccuFlux,accuFluxRatio)
+
 
         if save == True:
             if self.lat5[0] < 0.0:
