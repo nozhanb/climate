@@ -327,3 +327,10 @@ March 21, 2018
 I made a small change to the fluxReader method in the energyice module. I moved the 
 accumulation function to a few lines further in the fluxReader(). Now it finds the 
 accumulation value of the anomaly matrix.
+
+March 22, 2018
+
+I added the temperature accumulation feature to the temperatureReader funtion. Now, 
+given a  region (longs and lats) it will find the average value of the 2m temperature
+for a given time interval (e.g. 36 years). Also, I made the thesisAccuTemp2m code to
+plot the outputs of the temperature accumulation.

@@ -392,7 +392,7 @@ class EnergyIce:
                     localIndex = numpy.append(localIndex,0.)
                 elif denominator != 0.:
                     localIndex = numpy.append(localIndex,numerator/denominator)
-            totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex))
+            totalFinalIndex = numpy.append(totalFinalIndex,numpy.sum(localIndex)) # Make sure this has to be sum not MEAN!!!
             print fileName[5:12], '-----> DONE!!!'
         EnergyAverage=EnergyAverage/float(len(self.yearRange))
         print totalFinalIndex
@@ -544,7 +544,7 @@ class EnergyIce:
 ###############################################################################
 ###############################################################################
 
-    def temperatureReader(self, fName = 'totalLandMask', save = True, \
+    def temperatureReader(self, fName = 'totalLandMask', save = True, accumulation=False,\
                     montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
 
         tempAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
@@ -560,7 +560,32 @@ class EnergyIce:
             tempAverage = tempAverage + fastTemp
             print fileName[4:8], '-----> DONE!!!'            
         tempAverage=tempAverage/float(len(self.yearRange))
+        
+        
+        if accumulation==True:
+            totalFiles2 = []
+            accuFinalIndex=numpy.array([])
+            for totalYear in self.yearRange:
+                totalFiles2.append('SAT.'+str(totalYear)+'.nc')
+            for totalName2 in totalFiles2:
+                loaded_file = netCDF4.Dataset(self.path+totalName2)
+                totalFastTemp2 = numpy.array(loaded_file.variables['2T_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                fastLat = numpy.array(loaded_file.variables['g0_lat_1'][self.finalLat[0]:self.finalLat[-1]+1])
+                totalFastTemp2 = numpy.ma.masked_where(maskOfEurope,totalFastTemp2).filled(0.)
+                cosValue = numpy.cos(fastLat*(3.14/180.))
+                cosValue = cosValue.reshape(self.finalLat.size,1)
+                accuIndex = numpy.array([])
+                for i in range(self.finalLat.size):
+                    numerator = numpy.sum(numpy.sum(totalFastTemp2[i:i+1,:]*cosValue[i:i+1,:],0))
+                    denominator = numpy.count_nonzero(totalFastTemp2[i:i+1,:])*numpy.sum(cosValue[i:i+1,0])
+                    if denominator == 0.:
+                        accuIndex = numpy.append(accuIndex,0.)
+                    elif denominator != 0.:
+                        accuIndex = numpy.append(accuIndex,numerator/denominator)
+                accuFinalIndex = numpy.append(accuFinalIndex,numpy.mean(numpy.ma.masked_equal(accuIndex,0.))-273.15)
+                print totalName2[4:8], '-----> Temperature accumulation DONE!!!'
             
+        
         if montecarlo == True:
             import random
             yArray = numpy.arange(1979,2015)
@@ -613,7 +638,8 @@ class EnergyIce:
                 lonSec = 'E'
             if outputName == None:
                 nameToWrite2 = self.fileContent+'Average'
-                nameToWrite3 = self.fileContent+'Montecarlo'   
+                nameToWrite3 = self.fileContent+'Montecarlo'
+                nameToWrite4 = self.fileContent+'Accumulation'
                 
             if highLowAndMonth is None:
                 baseM = '---'
@@ -631,13 +657,20 @@ class EnergyIce:
                 if montecarlo == True:
                     ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                     finalDensity.tofile(ff3,sep=",")
-                    ff3.close()
+                    ff3.close() 
+                if accumulation==True:
+                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    accuFinalIndex.tofile(ff4,sep=",")
+                    ff4.close()
+                    
             
             ff2.write(json.dumps((tempAverage).tolist()))
             ff2.close()
         if montecarlo == True:
             return tempAverage, finalDensity
-        elif montecarlo == False:
+        elif montecarlo==False and accumulation==True:
+            return tempAverage,accuFinalIndex
+        elif montecarlo==False and accumulation==False:
             return tempAverage
 
 
@@ -1455,3 +1488,5 @@ def europeMap(data,longitude,latitude,sphereProjection= False, figTitle = None,\
         plt.savefig('/home/nba035/plot/'+name+'.eps',dpi = 80, format = 'eps')
 
     plt.show()
+
+
