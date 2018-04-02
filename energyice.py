@@ -275,22 +275,20 @@ class EnergyIce:
                 count2 = 0
                 theDensity = finalDensity
                 while count2 < smoothingCount:
+                    densityNumerator = uniform_filter1d((theDensity*cosValue),axis=0,size=length,origin=0,mode=mode)
 #==============================================================================
-#                     densityNumerator = uniform_filter1d((theDensity*cosValue),axis=0,size=length,origin=0,mode=mode)
+#                     densityNumerator = uniform_filter1d(theDensity,axis=0,size=length,origin=0,mode=mode)
 #==============================================================================
-                    densityNumerator = uniform_filter1d(theDensity,axis=0,size=length,origin=0,mode=mode)
+                    densityDenominator = densityNumerator/cosValue
 #==============================================================================
-#                     densityDenominator = densityNumerator/cosValue
+#                     densityDenominator = densityNumerator
 #==============================================================================
-                    densityDenominator = densityNumerator
                     for ilat in range(len(fastLat)):
+                        lonStep = int(min([720.,(length*2.)/cosValue[ilat]]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
+                        densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=lonStep,origin=0,mode = mode)
 #==============================================================================
-#                         lonStep = int(min([720.,(length*2.)/cosValue[ilat]]))  #   numpy.cos(fastLat[ilat]*(3.14/180.))
+#                         densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=length,origin=0,mode = mode)
 #==============================================================================
-#==============================================================================
-#                         densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=lonStep,origin=0,mode = mode)
-#==============================================================================
-                        densityFilt[ilat:ilat+1,:] = uniform_filter1d(densityDenominator[ilat,:],size=length,origin=0,mode = mode)
                     theDensity = densityFilt
                     count2 += 1
             while count1 < smoothingCount:
@@ -340,11 +338,8 @@ class EnergyIce:
                     ff3.close()
                 if smoothing == True:
                     if montecarlo==True:
-                        ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                         ff5 = open(nameToWrite5+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
-                        filt.tofile(ff4,sep=",")
                         densityFilt.tofile(ff5,sep=",")
-                        ff4.close()
                         ff5.close()
                     elif montecarlo==False:
                         ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
@@ -443,17 +438,30 @@ class EnergyIce:
 
 
     def geoPoReader(self, fName = 'totalLandMask', geoLevel = 0, save = True, \
-                    montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
+                    montecarlo=False, counts=None, highLowAndMonth = None, \
+                    combine=False, outputName = None):
 
         geoPoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         
-        for fileName in self.filex:
-            loaded_file = netCDF4.Dataset(self.path+fileName)
-            fastGeoPo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-            geoPoAverage = geoPoAverage + fastGeoPo/9.8
-            print fileName[2:6], '-----> DONE!!!'            
-        geoPoAverage=geoPoAverage/float(len(self.yearRange))
-#        print 'This is the 4-year total average ----->', geoPoAverage[40,40]            
+        if combine == False:
+            for fileName in self.filex:
+                loaded_file = netCDF4.Dataset(self.path+fileName)
+                fastGeoPo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                geoPoAverage = geoPoAverage + fastGeoPo/9.8
+                print fileName[2:6], '-----> DONE!!!'            
+            geoPoAverage=geoPoAverage/float(len(self.yearRange))
+        elif combine == True:
+            for fileName in self.filex:
+                geoPoMonthAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                loaded_file = netCDF4.Dataset(self.path+fileName)
+                for mons in self.month:
+                    fastGeoPo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(mons)-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    geoPoMonthAverage = geoPoMonthAverage + fastGeoPo/9.8
+                geoPoMonthAverage = geoPoMonthAverage/float(len(self.month))
+                geoPoAverage = geoPoAverage + geoPoMonthAverage
+                print fileName[2:6], '-----> DONE!!!'
+            geoPoAverage=geoPoAverage/float(len(self.yearRange))
+                
             
         if montecarlo == True:
             import random
@@ -463,36 +471,63 @@ class EnergyIce:
             totalFiles = []
             for totalYear in numpy.arange(1979,2015):
                 totalFiles.append('Z.'+str(totalYear)+'.nc')
-            for totalName in totalFiles:
-                loaded_file = netCDF4.Dataset(self.path+totalName)
-                totalFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                totalGeopo = totalGeopo + totalFastGeopo/9.8
-            totalGeopo = totalGeopo/float(len(yArray))
-#            print 'This is the 36-year total average ----->', totalGeopo[40,40]
+            if combine == False:
+                for totalName in totalFiles:
+                    loaded_file = netCDF4.Dataset(self.path+totalName)
+                    totalFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    totalGeopo = totalGeopo + totalFastGeopo/9.8
+                totalGeopo = totalGeopo/float(len(yArray))
+            elif combine == False:
+                for totalName in totalFiles:
+                    totalMonthGeopo = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                    loaded_file = netCDF4.Dataset(self.path+totalName)
+                    for mons in self.month:
+                        totalFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                        totalMonthGeopo = totalMonthGeopo + totalFastGeopo/9.8
+                    totalMonthGeopo = totalMonthGeopo/float(len(self.month))
+                    totalGeopo = totalGeopo + totalMonthGeopo
+                totalGeopo = totalGeopo/float(len(yArray))
             
             subtractedGeopo = geoPoAverage - totalGeopo
             
-#            print 'This is the subtracted value --->', subtractedGeopo[40,40]
             
-            for i in range(0,counts):
-                print "Monte Carlo cycle: ", i
-                mcFiles = []
-                years = random.sample(yArray,len(self.filex))
-                mcGeopoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
-                for ycount in years:
-                    mcFiles.append('Z.'+str(ycount)+'.nc')
-                for j in mcFiles:
-                    loaded_file = netCDF4.Dataset(self.path+j)
-                    mcFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                    mcGeopoAverage = mcGeopoAverage + mcFastGeopo/9.8
-                mcGeopoAverage=mcGeopoAverage/float(len(self.yearRange))
-#                print 'This is the Monte-year total average ----->', mcGeopoAverage[40,40]
-                subtractedMc = mcGeopoAverage - totalGeopo
-#                print 'This is the Monte-Carlo subtracted value --->', subtractedMc[40,40]
-                cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedGeopo),numpy.absolute(subtractedMc)).astype(float)
-#                print 'This is the cell density value -----> ', cellDensity[40,40]
-            finalDensity = cellDensity/counts
-#            print 'This the final value of cell density divided by counts ----->', finalDensity[40,40]
+            if combine == False:
+                for i in range(0,counts):
+                    print "Monte Carlo cycle: ", i
+                    mcFiles = []
+                    years = random.sample(yArray,len(self.filex))
+                    mcGeopoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                    for ycount in years:
+                        mcFiles.append('Z.'+str(ycount)+'.nc')
+                    for j in mcFiles:
+                        loaded_file = netCDF4.Dataset(self.path+j)
+                        mcFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                        mcGeopoAverage = mcGeopoAverage + mcFastGeopo/9.8
+                    mcGeopoAverage=mcGeopoAverage/float(len(self.yearRange))
+                    subtractedMc = mcGeopoAverage - totalGeopo
+                    cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedGeopo),numpy.absolute(subtractedMc)).astype(float)
+                finalDensity = cellDensity/counts
+            elif combine == False:
+                for i in range(0,counts):
+                    print "Monte Carlo cycle: ", i
+                    mcFiles = []
+                    years = random.sample(yArray,len(self.filex))
+                    mcGeopoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                    for ycount in years:
+                        mcFiles.append('Z.'+str(ycount)+'.nc')
+                    for j in mcFiles:
+                        mcGeopoMonthAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                        loaded_file = netCDF4.Dataset(self.path+j)
+                        for mons in self.month:
+                            mcFastGeopo = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(mons)-1,geoLevel,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                            mcGeopoMonthAverage = mcGeopoMonthAverage + mcFastGeopo/9.8
+                        mcGeopoMonthAverage = mcGeopoMonthAverage/float(len(self.month))
+                        mcGeopoAverage = mcGeopoAverage + mcGeopoMonthAverage
+                    mcGeopoAverage=mcGeopoAverage/float(len(self.yearRange))
+                    subtractedMc = mcGeopoAverage - totalGeopo
+                    cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedGeopo),numpy.absolute(subtractedMc)).astype(float)
+                finalDensity = cellDensity/counts
+                    
                     
         if save == True:
             if self.lat5[0] < 0.0:
@@ -513,7 +548,8 @@ class EnergyIce:
                 lonSec = 'E'
             if outputName == None:
                 nameToWrite2 = self.fileContent+'Average'
-                nameToWrite3 = self.fileContent+'Montecarlo'   
+                nameToWrite3 = self.fileContent+'Montecarlo'
+                nameToWrite4 = self.fileContent+'Combined'
                 
             if highLowAndMonth is None:
                 baseM = '---'
@@ -532,6 +568,11 @@ class EnergyIce:
                     ff3 = open(nameToWrite3+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
                     finalDensity.tofile(ff3,sep=",")
                     ff3.close()
+                if combine == True:
+                    ff4 = open(nameToWrite4+baseM+'_'+str(self.year1)+'_'+str(self.year2)+'_'+self.monthName+'_'+str(abs(self.lon5[0]))+lonFir+str(abs(self.lon5[1]))+lonSec+'_'+str(abs(self.lat5[0]))+latFir+str(abs(self.lat5[1]))+latSec,'w')
+                    finalDensity.tofile(ff4,sep=",")
+                    ff4.close()
+            
             
             ff2.write(json.dumps((geoPoAverage).tolist()))
             ff2.close()

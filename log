@@ -334,3 +334,10 @@ I added the temperature accumulation feature to the temperatureReader funtion. N
 given a  region (longs and lats) it will find the average value of the 2m temperature
 for a given time interval (e.g. 36 years). Also, I made the thesisAccuTemp2m code to
 plot the outputs of the temperature accumulation.
+
+April 02, 2018
+
+I added a combine feature to the geoPo function in energy.py. It is suppose to read in 
+several different months and average over them and find the anomalies rather than reading
+month one by one. I still have not run it so I am not sure even if it works. We will see 
+tomorrow!
