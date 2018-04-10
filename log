@@ -341,3 +341,9 @@ I added a combine feature to the geoPo function in energy.py. It is suppose to r
 several different months and average over them and find the anomalies rather than reading
 month one by one. I still have not run it so I am not sure even if it works. We will see 
 tomorrow!
+
+
+April 10, 2018
+
+I fixed the accumulated cloud values in the cloudReader() function. It was overwriting the 
+values of each year over the previous instead of adding them together.
