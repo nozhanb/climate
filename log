@@ -347,3 +347,10 @@ April 10, 2018
 
 I fixed the accumulated cloud values in the cloudReader() function. It was overwriting the 
 values of each year over the previous instead of adding them together.
+
+
+April 12, 2018
+
+I added the function "geoThicknessReader" to the energyice.py. It measures the thickness 
+anomaly (in meter) between two layers of pressure (e.g. 500 hPa - 1000 hPa). And it runs 
+the Monte-Carlo too.

@@ -439,7 +439,7 @@ class EnergyIce:
 
     def geoPoReader(self, fName = 'totalLandMask', geoLevel = 0, save = True, \
                     montecarlo=False, counts=None, highLowAndMonth = None, \
-                    combine=False, outputName = None):
+                    combine=False, thickness=False,thickLevels=[11,20], outputName = None):
 
         geoPoAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
         
@@ -461,8 +461,7 @@ class EnergyIce:
                 geoPoAverage = geoPoAverage + geoPoMonthAverage
                 print fileName[2:6], '-----> DONE!!!'
             geoPoAverage=geoPoAverage/float(len(self.yearRange))
-                
-            
+        
         if montecarlo == True:
             import random
             yArray = numpy.arange(1979,2015)
@@ -575,6 +574,119 @@ class EnergyIce:
             return geoPoAverage, finalDensity
         elif montecarlo == False:
             return geoPoAverage
+
+
+
+###############################################################################
+###############################################################################
+
+    def geoThicknessReader(self, thickLevels=[11,26], montecarlo=False, counts=None):
+
+        #   Remember the leves: 500 hPa --- 11, 850 hPa --- 20, 1000 hPa --- 26
+        geoPoAverage1 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        geoPoAverage2 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+
+        for fileName in self.filex:
+            loaded_file = netCDF4.Dataset(self.path+fileName)
+            fastGeoPo1 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[0],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            fastGeoPo2 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[1],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            geoPoAverage1 = geoPoAverage1 + fastGeoPo1/9.8
+            geoPoAverage2 = geoPoAverage2 + fastGeoPo2/9.8
+        geoPoAverage1=geoPoAverage1/float(len(self.yearRange))
+        geoPoAverage2=geoPoAverage2/float(len(self.yearRange))
+        fastLat = numpy.array(loaded_file.variables['g0_lat_2'][self.finalLat[0]:self.finalLat[-1]+1])
+        cosValue = numpy.cos(fastLat*(3.14/180.))
+        cosValue = cosValue.reshape(self.finalLat.size)
+        thickIndex1 = numpy.array([])
+        thickFinalIndex1=numpy.array([])
+        thickIndex2 = numpy.array([])
+        thickFinalIndex2=numpy.array([])
+        for i in range(self.finalLat.size):
+            numerator1   = numpy.sum(geoPoAverage1[i:i+1,:]*cosValue[i],1)
+            denominator1 = geoPoAverage1[i:i+1,:].size*cosValue[i]
+            thickIndex1  = numpy.append(thickIndex1,numerator1/denominator1)
+            numerator2   = numpy.sum(geoPoAverage2[i:i+1,:]*cosValue[i],1)
+            denominator2 = geoPoAverage2[i:i+1,:].size*cosValue[i]
+            thickIndex2  = numpy.append(thickIndex2,numerator2/denominator2)
+        thickFinalIndex1  = numpy.append(thickFinalIndex1,numpy.mean(thickIndex1))
+        thickFinalIndex2  = numpy.append(thickFinalIndex2,numpy.mean(thickIndex2))
+        thickness = thickFinalIndex1 - thickFinalIndex2
+
+        totalGeoPoAverage1 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        totalGeoPoAverage2 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+        totalThickFiles = []
+        totalThickIndex1 = numpy.array([])
+        totalThickFinalIndex1=numpy.array([])
+        totalThickIndex2 = numpy.array([])
+        totalThickFinalIndex2=numpy.array([])
+        for totalThickYear in numpy.arange(1979,2015):
+            totalThickFiles.append('Z.'+str(totalThickYear)+'.nc')
+        for totalThickName in totalThickFiles:
+            loaded_file = netCDF4.Dataset(self.path+totalThickName)
+            totalThickFastGeopo1 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[0],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            totalThickFastGeopo2 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[1],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            totalGeoPoAverage1 = totalGeoPoAverage1 + totalThickFastGeopo1/9.8
+            totalGeoPoAverage2 = totalGeoPoAverage2 + totalThickFastGeopo2/9.8
+        totalGeoPoAverage1=totalGeoPoAverage1/float(len(totalThickFiles))
+        totalGeoPoAverage2=totalGeoPoAverage2/float(len(totalThickFiles))
+        for i in range(self.finalLat.size):
+            totalNumerator1   = numpy.sum(totalGeoPoAverage1[i:i+1,:]*cosValue[i],1)
+            totalDenominator1 = totalGeoPoAverage1[i:i+1,:].size*cosValue[i]
+            totalThickIndex1  = numpy.append(totalThickIndex1,totalNumerator1/totalDenominator1)
+            totalNumerator2   = numpy.sum(totalGeoPoAverage2[i:i+1,:]*cosValue[i],1)
+            totalDenominator2 = totalGeoPoAverage2[i:i+1,:].size*cosValue[i]
+            totalThickIndex2  = numpy.append(totalThickIndex2,totalNumerator2/totalDenominator2)
+        totalThickFinalIndex1  = numpy.append(totalThickFinalIndex1,numpy.mean(totalThickIndex1))
+        totalThickFinalIndex2  = numpy.append(totalThickFinalIndex2,numpy.mean(totalThickIndex2))
+        
+        totalThickness = totalThickFinalIndex1 - totalThickFinalIndex2        
+
+        thicknessAnomaly = thickness - totalThickness
+
+        if montecarlo==True:
+            import random
+            yArray = numpy.arange(1979,2015)
+            cellDensity = numpy.zeros((1))
+            for i in range(0,counts):
+                print "Monte Carlo cycle: ", i
+                mcFiles = []
+                years = random.sample(yArray,len(self.filex))
+                mcGeopoAverage1 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                mcGeopoAverage2 = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                mcThickIndex1 = numpy.array([])
+                mcThickFinalIndex1=numpy.array([])
+                mcThickIndex2 = numpy.array([])
+                mcThickFinalIndex2=numpy.array([])
+                for ycount in years:
+                    mcFiles.append('Z.'+str(ycount)+'.nc')
+                for j in mcFiles:
+                    loaded_file = netCDF4.Dataset(self.path+j)
+                    mcFastGeopo1 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[0],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcFastGeopo2 = numpy.array(loaded_file.variables['Z_GDS0_ISBL_123'][int(self.month[0])-1,thickLevels[1],self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1]) 
+                    mcGeopoAverage1 = mcGeopoAverage1 + mcFastGeopo1/9.8
+                    mcGeopoAverage2 = mcGeopoAverage2 + mcFastGeopo2/9.8
+                mcGeopoAverage1=mcGeopoAverage1/float(len(self.yearRange))
+                mcGeopoAverage2=mcGeopoAverage2/float(len(self.yearRange))
+                for i in range(self.finalLat.size):
+                    mcNumerator1   = numpy.sum(mcGeopoAverage1[i:i+1,:]*cosValue[i],1)    #cosValue[i:i+1,:]
+                    mcDenominator1 = mcGeopoAverage1[i:i+1,:].size*cosValue[i]#numpy.sum(cosValue[i:i+1,0]
+                    mcThickIndex1  = numpy.append(mcThickIndex1,mcNumerator1/mcDenominator1)
+                    mcNumerator2   = numpy.sum(mcGeopoAverage2[i:i+1,:]*cosValue[i],1)
+                    mcDenominator2 = mcGeopoAverage2[i:i+1,:].size*cosValue[i]
+                    mcThickIndex2  = numpy.append(mcThickIndex2,mcNumerator2/mcDenominator2)
+                mcThickFinalIndex1  = numpy.append(mcThickFinalIndex1,numpy.mean(mcThickIndex1))
+                mcThickFinalIndex2  = numpy.append(mcThickFinalIndex2,numpy.mean(mcThickIndex2))
+            
+                mcThickness = mcThickFinalIndex1 - mcThickFinalIndex2
+                
+                subtractedMc = mcThickness - totalThickness
+                cellDensity = cellDensity + numpy.greater(numpy.absolute(thicknessAnomaly),numpy.absolute(subtractedMc)).astype(float)
+            finalDensity = cellDensity/counts
+        
+        if montecarlo == True:
+            return thicknessAnomaly, finalDensity
+        elif montecarlo == False:
+            return thicknessAnomaly
 
 
 ###############################################################################
