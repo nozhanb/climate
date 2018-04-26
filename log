@@ -354,3 +354,9 @@ April 12, 2018
 I added the function "geoThicknessReader" to the energyice.py. It measures the thickness 
 anomaly (in meter) between two layers of pressure (e.g. 500 hPa - 1000 hPa). And it runs 
 the Monte-Carlo too.
+
+April 26, 2018
+
+I added the new function "energiesReader" to the energyice.py. However, I am not use about
+the performance and the integrity of the output. It reads both dry and latent energies and
+add them up and does the smoothing and finds the statistical significance of the result. 
