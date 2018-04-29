@@ -117,7 +117,7 @@ class EnergyIce:
         elif self.fileContent == 'Flux':
             self.path = './data/'
         elif self.fileContent == 'Precipitation':
-            self.path = './data/Precipitation'
+            self.path = './data/precip/'
             for years in self.yearRange:
                 self.filex.append('Z.'+str(years)+'.nc')
         elif self.fileContent == 'Moisture':
@@ -1360,12 +1360,10 @@ class EnergyIce:
             filex3.append(ftype)
         for year in self.yearRange:
             energyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-#            days = calendar.monthrange(int(year),int(self.month[0]))[1]
-            secToDays = 86400.
             for precipName in filex3:
-                loaded_file = netCDF4.Dataset(self.path+'precip/'+precipName+'/'+precipName+'.'+str(year)+'.nc')
+                loaded_file = netCDF4.Dataset(self.path+precipName+'/'+precipName+'.'+str(year)+'.nc')
                 fastprecip = numpy.array(loaded_file.variables[precipPair[precipName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                energyBudget = energyBudget + fastprecip/secToDays
+                energyBudget = energyBudget + fastprecip*1000.  #   Multiplied by 1000 to convert from meter to mm.
             precipAverage = precipAverage + energyBudget
             print year, '-----> DONE!!!'
         precipAverage=precipAverage/float(len(self.yearRange))
@@ -1378,14 +1376,13 @@ class EnergyIce:
             totalprecipAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for year in yArray:
                 totalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-#                days = calendar.monthrange(int(year),int(self.month[0]))[1]
-                secToDays = 86400.
                 for precipName in filex3:
-                    loaded_file = netCDF4.Dataset(self.path+'precip/'+precipName+'/'+precipName+'.'+str(year)+'.nc')
+                    loaded_file = netCDF4.Dataset(self.path+precipName+'/'+precipName+'.'+str(year)+'.nc')
                     totalFastprecip = numpy.array(loaded_file.variables[precipPair[precipName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                    totalEnergyBudget = totalEnergyBudget + totalFastprecip/secToDays
+                    totalEnergyBudget = totalEnergyBudget + totalFastprecip*1000.
                 totalprecipAverage = totalprecipAverage + totalEnergyBudget
             totalprecipAverage=totalprecipAverage/float(len(yArray))
+            
             subtractedprecip = precipAverage - totalprecipAverage
             
             for i in range(0,counts):
@@ -1394,15 +1391,15 @@ class EnergyIce:
                 mcprecipAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
                 for year in years:  #   Notice that year and years are different!!!
                     mcTotalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-#                    days = calendar.monthrange(int(year),int(self.month[0]))[1]
-                    secToDays = 86400.
                     for precipName in filex3:
-                        loaded_file = netCDF4.Dataset(self.path+'precip/'+precipName+'/'+precipName+'.'+str(year)+'.nc')
+                        loaded_file = netCDF4.Dataset(self.path+precipName+'/'+precipName+'.'+str(year)+'.nc')
                         mcTotalFastprecip = numpy.array(loaded_file.variables[precipPair[precipName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                        mcTotalEnergyBudget = mcTotalEnergyBudget + mcTotalFastprecip/secToDays
+                        mcTotalEnergyBudget = mcTotalEnergyBudget + mcTotalFastprecip*1000.
                     mcprecipAverage = mcprecipAverage + mcTotalEnergyBudget
                 mcprecipAverage = mcprecipAverage/float(len(self.yearRange))
+                
                 mcSubtractedprecip = mcprecipAverage - totalprecipAverage
+                
                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedprecip),numpy.absolute(mcSubtractedprecip)).astype(float)
             finalDensity = cellDensity/counts
             
@@ -1414,12 +1411,10 @@ class EnergyIce:
             totalprecipAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
             for year in yArray:
                 totalEnergyBudget = numpy.zeros((self.finalLat.size,self.finalLon.size))
-#                days = calendar.monthrange(int(year),int(self.month[0]))[1]
-                secToDays = 86400.
                 for precipName in filex3:
-                    loaded_file = netCDF4.Dataset(self.path+'precip/'+precipName+'/'+precipName+'.'+str(year)+'.nc')
+                    loaded_file = netCDF4.Dataset(self.path+precipName+'/'+precipName+'.'+str(year)+'.nc')
                     totalFastprecip = numpy.array(loaded_file.variables[precipPair[precipName]][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-                    totalEnergyBudget = totalEnergyBudget + totalFastprecip/secToDays
+                    totalEnergyBudget = totalEnergyBudget + totalFastprecip*1000.
                 totalprecipAverage = totalprecipAverage + totalEnergyBudget
             totalprecipAverage = totalprecipAverage/float(len(yArray))
             subtractedprecip = precipAverage - totalprecipAverage
@@ -1632,22 +1627,22 @@ class EnergyIce:
 ###############################################################################
 
 
-    def moistureReader(self, fName = 'totalLandMask', save = True, accumulation=False,\
+    def moistureReader(self, geoLevel=15, save = True, accumulation=False,\
                     montecarlo=False, counts=None, highLowAndMonth = None, outputName = None):
-
-        moistAverage = numpy.zeros((19,self.finalLat.size,self.finalLon.size))
+        #   Pressure levels (starting from 0): 8=500mb, 15=850, 18=1000mb
+        moistAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
 
         for fileName in self.filex:
             print self.path+fileName
             loaded_file  = netCDF4.Dataset(self.path+fileName)
-            fastmoist    = numpy.array(loaded_file.variables['Q_GDS0_ISBL_123'][int(self.month[0])-1,:,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+            fastmoist    = numpy.array(loaded_file.variables['Q_GDS0_ISBL_123'][int(self.month[0])-1,int(geoLevel),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
             moistAverage = moistAverage + fastmoist
             print fileName[4:8], '-----> DONE!!!'            
         moistAverage = moistAverage/float(len(self.yearRange))
         
+        
 #==============================================================================
 #==============================================================================
-# #         
 # #         if accumulation==True:
 # #             totalFiles2 = []
 # #             accuFinalIndex=numpy.array([])
@@ -1669,42 +1664,43 @@ class EnergyIce:
 # #                         accuIndex = numpy.append(accuIndex,numerator/denominator)
 # #                 accuFinalIndex = numpy.append(accuFinalIndex,numpy.mean(numpy.ma.masked_equal(accuIndex,0.))-273.15)
 # #                 print totalName2[4:8], '-----> moisterature accumulation DONE!!!'
-# # 
-# #         
-# #         if montecarlo == True:
-# #             import random
-# #             yArray = numpy.arange(1979,2015)
-# #             cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
-# #             totalmoist = numpy.zeros((self.finalLat.size,self.finalLon.size))
-# #             totalFiles = []
-# #             for totalYear in numpy.arange(1979,2015):
-# #                 totalFiles.append('SAT.'+str(totalYear)+'.nc')
-# #             for totalName in totalFiles:
-# #                 loaded_file = netCDF4.Dataset(self.path+totalName)
-# #                 totalFastmoist = numpy.array(loaded_file.variables['2T_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-# #                 #totalFastmoist = numpy.ma.masked_where(maskOfEurope,totalFastmoist).filled(0.)
-# #                 totalmoist = totalmoist + totalFastmoist
-# #             totalmoist = totalmoist/float(len(yArray))
-# #             
-# #             subtractedmoist = moistAverage - totalmoist
-# #             
-# #             for i in range(0,counts):
-# #                 print "Monte Carlo cycle: ", i
-# #                 mcFiles = []
-# #                 years = random.sample(yArray,len(self.filex))
-# #                 mcmoistAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
-# #                 for ycount in years:
-# #                     mcFiles.append('SAT.'+str(ycount)+'.nc')
-# #                 for j in mcFiles:
-# #                     loaded_file = netCDF4.Dataset(self.path+j)
-# #                     mcfastmoist = numpy.array(loaded_file.variables['2T_GDS0_SFC_123'][int(self.month[0])-1,self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
-# #                     mcmoistAverage = mcmoistAverage + mcfastmoist
-# #                 mcmoistAverage=mcmoistAverage/float(len(self.yearRange))    
-# #                 subtractedMc = mcmoistAverage - totalmoist
-# #                 cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedmoist),numpy.absolute(subtractedMc)).astype(float)
 # #==============================================================================
 #==============================================================================
-##            finalDensity = cellDensity/counts
+
+        
+        if montecarlo == True:
+            import random
+            yArray = numpy.arange(1979,2015)
+            cellDensity = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalmoist = numpy.zeros((self.finalLat.size,self.finalLon.size))
+            totalFiles = []
+            for totalYear in numpy.arange(1979,2015):
+                totalFiles.append('SH.'+str(totalYear)+'.nc')
+            for totalName in totalFiles:
+                loaded_file = netCDF4.Dataset(self.path+totalName)
+                totalFastmoist = numpy.array(loaded_file.variables['Q_GDS0_ISBL_123'][int(self.month[0])-1,int(geoLevel),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                totalmoist = totalmoist + totalFastmoist                
+            totalmoist = totalmoist/float(len(yArray))
+            
+            subtractedmoist = moistAverage - totalmoist
+            
+            for i in range(0,counts):
+                print "Monte Carlo cycle: ", i
+                mcFiles = []
+                years = random.sample(yArray,len(self.filex))
+                mcmoistAverage = numpy.zeros((self.finalLat.size,self.finalLon.size))
+                for ycount in years:
+                    mcFiles.append('SH.'+str(ycount)+'.nc')
+                for j in mcFiles:
+                    loaded_file = netCDF4.Dataset(self.path+j)
+                    mcfastmoist = numpy.array(loaded_file.variables['Q_GDS0_ISBL_123'][int(self.month[0])-1,int(geoLevel),self.finalLat[0]:self.finalLat[-1]+1,self.finalLon[0]:self.finalLon[-1]+1])
+                    mcmoistAverage = mcmoistAverage + mcfastmoist
+                mcmoistAverage=mcmoistAverage/float(len(self.yearRange))
+                
+                subtractedMc = mcmoistAverage - totalmoist
+                
+                cellDensity = cellDensity + numpy.greater(numpy.absolute(subtractedmoist),numpy.absolute(subtractedMc)).astype(float)
+            finalDensity = cellDensity/counts
       
 
               

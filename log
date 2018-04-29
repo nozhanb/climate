@@ -360,3 +360,9 @@ April 26, 2018
 I added the new function "energiesReader" to the energyice.py. However, I am not use about
 the performance and the integrity of the output. It reads both dry and latent energies and
 add them up and does the smoothing and finds the statistical significance of the result. 
+
+
+April 29, 2018
+
+I fixed a few bugs in mositReader(). It works fine except the accumulation part of it. I 
+need to check that part!
